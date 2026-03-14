@@ -1,0 +1,20 @@
+{
+  "timestamp": "2026-03-14T17:25:42Z",
+  "hostname": "github-actions",
+  "gateway": {
+    "status": "remote",
+    "note": "Gateway runs locally"
+  },
+  "channels": {
+    "telegram": {
+      "status": "unknown",
+      "note": "Local gateway only"
+    },
+    "line": {
+      "status": "unknown",
+      "note": "Local gateway only"
+    }
+  },
+  "sessions": [],
+  "version": "OpenClaw 2026.3.13"
+}
