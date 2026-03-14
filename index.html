@@ -9,25 +9,26 @@
 </head>
 <body>
   <!-- Status Bar -->
-  <div class="status-bar">
+  <div class="status-bar" role="banner">
     <div class="status-left">
-      <span class="logo">⚡ Nexus Office</span>
+      <span class="logo">⚡ Nexus HQ</span>
       <span class="status-pill" id="gw-pill">Gateway: --</span>
       <span class="status-pill" id="tg-pill">Telegram: --</span>
       <span class="status-pill" id="line-pill">LINE: --</span>
     </div>
     <div class="status-right">
-      <span id="agent-count">0 Agents</span>
-      <span id="clock"></span>
-      <button class="settings-btn" id="settings-btn" title="設定">⚙</button>
+      <span id="agent-count" aria-live="polite">0 Agents</span>
+      <span id="clock" aria-label="Clock"></span>
+      <button class="theme-btn" id="theme-btn" title="Toggle theme" aria-label="Toggle theme">☀</button>
+      <button class="settings-btn" id="settings-btn" title="Settings" aria-label="Settings">⚙</button>
     </div>
   </div>
 
   <!-- Main Canvas -->
-  <canvas id="office"></canvas>
+  <canvas id="office" role="img" aria-label="Manufacturing HQ pixel art office scene"></canvas>
 
   <!-- Agent Info Panel (shown on hover) -->
-  <div class="agent-panel" id="agent-panel" style="display:none">
+  <div class="agent-panel" id="agent-panel" style="display:none" role="tooltip">
     <div class="agent-panel-name" id="panel-name"></div>
     <div class="agent-panel-role" id="panel-role"></div>
     <div class="agent-panel-status" id="panel-status"></div>

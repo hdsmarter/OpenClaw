@@ -1,9 +1,23 @@
 /**
- * app.js — Orchestrator: I18n + OfficeScene + StatusFetcher + ChatClient + ChatPanel + Notifications + SettingsPanel
+ * app.js — Orchestrator
+ * I18n + ThemePalette + OfficeScene + StatusFetcher + ChatClient + ChatPanel + Notifications + SettingsPanel
+ * Streaming wiring for OpenRouter SSE
  */
 (function () {
-  // Initialize i18n first
+  // Initialize i18n + theme
   I18n.init();
+  ThemePalette.init();
+
+  // Theme toggle button
+  const themeBtn = document.getElementById('theme-btn');
+  if (themeBtn) {
+    themeBtn.textContent = ThemePalette._current === 'light' ? '\u2600' : '\uD83C\uDF19';
+    themeBtn.setAttribute('aria-label', I18n.t('app.themeToggle'));
+    themeBtn.addEventListener('click', () => {
+      ThemePalette.toggle();
+      themeBtn.textContent = ThemePalette._current === 'light' ? '\u2600' : '\uD83C\uDF19';
+    });
+  }
 
   // Core modules
   const office = new OfficeScene('office');
@@ -76,15 +90,14 @@
     el.textContent = h + ':' + m + ':' + s;
   }
 
-  // ── Wiring: OfficeScene → ChatPanel ─────────
+  // ── Wiring: OfficeScene -> ChatPanel ─────────
   office.onAgentClick = (agent) => {
     chat.open(agent);
     chat.setOffline(cc.state !== 'connected');
-    // Show Telegram fallback if both modes fail
-    chat.showTelegramFallback(cc.state !== 'connected');
+    chat.showTelegramFallback(cc.state !== 'connected' && cc.mode === 'telegram');
   };
 
-  // ── Wiring: ChatPanel → ChatClient ──────────
+  // ── Wiring: ChatPanel -> ChatClient ──────────
   chat.onSend = (agentId, text) => {
     const sent = cc.sendChat(agentId, text);
     if (!sent) {
@@ -102,34 +115,57 @@
   cc.addEventListener('disconnected', () => {
     notify.warning('\u26A0\uFE0F ' + I18n.t('app.disconnected'));
     chat.setOffline(true);
-    chat.showTelegramFallback(true);
+    chat.showTelegramFallback(cc.mode === 'telegram');
   });
 
   cc.addEventListener('message', (e) => {
-    const data = e.detail;
-    if (data.type === 'chat' || data.type === 'response') {
-      const agentId = data.agentId != null ? data.agentId : 0;
-      const text = data.text || data.message || '';
+    const d = e.detail;
 
-      // Show in chat panel if open for this agent
+    // OpenRouter streaming — incremental text
+    if (d.type === 'stream') {
+      if (!chat._streaming) {
+        chat.setTyping(false);
+        chat.startStreamingMessage();
+      }
+      chat.updateLastAgentMessage(d.text);
+      office.updateAgentStatus(d.agentId, 'active');
+      return;
+    }
+
+    // Final response (from any mode)
+    if (d.type === 'response' && d.final) {
+      if (chat._streaming) {
+        chat.finalizeStreaming();
+      } else if (chat.isOpen && chat.agent && chat.agent.id === d.agentId) {
+        chat.setTyping(false);
+        chat.addMessage('agent', d.text);
+      }
+      office.showAgentSpeech(d.agentId, d.text);
+      setTimeout(() => office.updateAgentStatus(d.agentId, 'idle'), 8000);
+      return;
+    }
+
+    // Chat / response (non-streaming modes: TG, Gateway)
+    if (d.type === 'chat' || d.type === 'response') {
+      const agentId = d.agentId != null ? d.agentId : 0;
+      const text = d.text || d.message || '';
+
       if (chat.isOpen && chat.agent && chat.agent.id === agentId) {
         chat.setTyping(false);
         chat.addMessage('agent', text);
       } else {
-        // Notify if chat not open
         const name = I18n.agentName(agentId);
         notify.info(name + '\uFF1A' + (text.length > 30 ? text.slice(0, 30) + '\u2026' : text));
       }
 
-      // Show speech bubble on agent
       office.showAgentSpeech(agentId, text);
-
-      // Briefly set agent as active
       office.updateAgentStatus(agentId, 'active', text.length > 20 ? text.slice(0, 20) : text);
       setTimeout(() => office.updateAgentStatus(agentId, 'idle'), 8000);
+      return;
     }
 
-    if (data.type === 'typing') {
+    // Typing indicator
+    if (d.type === 'typing') {
       chat.setTyping(true);
     }
   });
@@ -140,10 +176,11 @@
     gearBtn.addEventListener('click', () => settings.open());
   }
 
-  // ── i18n: update status bar labels on lang change ──
+  // ── i18n: update labels on lang change ──
   I18n.onChange(() => {
     const settingsBtn = document.getElementById('settings-btn');
     if (settingsBtn) settingsBtn.title = I18n.t('app.settings');
+    if (themeBtn) themeBtn.setAttribute('aria-label', I18n.t('app.themeToggle'));
     document.getElementById('agent-count').textContent = office.agents.length + ' ' + I18n.t('app.agents');
   });
 
