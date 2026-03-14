@@ -1,174 +1,82 @@
 /**
- * app.js — Main dashboard application
+ * app.js — Main application: connects office scene with status data
  */
 (function () {
+  // Initialize office scene
+  const office = new OfficeScene('office');
   const fetcher = new StatusFetcher();
-  const visualizer = new AgentVisualizer('agent-canvas');
 
-  // DOM references
-  const el = (id) => document.getElementById(id);
-
-  function updateDashboard(data) {
+  // Update status bar from data
+  function updateStatusBar(data) {
     if (!data) return;
 
-    // Version
-    el('version').textContent = data.version || '--';
-
-    // Last updated
-    if (data.timestamp) {
-      const t = new Date(data.timestamp);
-      el('last-updated').textContent = formatTime(t);
-    }
-
-    // Hostname
-    el('gw-hostname').textContent = data.hostname || '--';
-
-    // Gateway status
-    const gwStatus = parseGatewayStatus(data.gateway);
-    const gwEl = el('gw-status');
-    gwEl.textContent = gwStatus.label;
-    gwEl.style.color = gwStatus.color;
-
-    // Agent state
-    const agentState = determineAgentState(data);
-    visualizer.setState(agentState);
-    el('agent-state').textContent = stateLabel(agentState);
-    el('agent-state').style.color = stateColor(agentState);
-
-    // Uptime
-    if (data.gateway && data.gateway.uptime) {
-      el('agent-uptime').textContent = 'Uptime: ' + data.gateway.uptime;
-    } else if (data.timestamp) {
-      el('agent-uptime').textContent = 'Last check: ' + formatTime(new Date(data.timestamp));
-    }
-
-    // Channels
-    updateChannel('telegram', data.channels);
-    updateChannel('line', data.channels);
-
-    // Timeline
-    updateTimeline(data);
-  }
-
-  function parseGatewayStatus(gw) {
-    if (!gw || gw.error) return { label: 'offline', color: 'var(--red)' };
-    if (gw.status === 'running' || gw.status === 'ok') return { label: 'running', color: 'var(--green)' };
-    return { label: gw.status || 'unknown', color: 'var(--yellow)' };
-  }
-
-  function determineAgentState(data) {
-    if (!data.gateway || data.gateway.error) return 'offline';
-    if (data.sessions && data.sessions.length > 0) return 'active';
-    if (data.gateway.status === 'running' || data.gateway.status === 'ok') return 'idle';
-    return 'waiting';
-  }
-
-  function updateChannel(name, channels) {
-    const statusEl = el('ch-' + name + '-status');
-    if (!statusEl) return;
-
-    let status = 'unknown';
-    if (channels && channels[name]) {
-      const ch = channels[name];
-      if (typeof ch === 'string') {
-        status = ch;
-      } else if (ch.status) {
-        status = ch.status;
-      } else if (ch.error) {
-        status = 'error';
-      }
-    } else if (channels && channels.error) {
-      status = 'unavailable';
-    }
-
-    const map = {
-      running: ['running', 'status-ok'],
-      connected: ['connected', 'status-ok'],
-      ok: ['ok', 'status-ok'],
-      error: ['error', 'status-error'],
-      unavailable: ['unavailable', 'status-warn'],
-      unknown: ['--', 'status-unknown']
+    const setPill = (id, label, ok) => {
+      const el = document.getElementById(id);
+      el.textContent = label;
+      el.className = 'status-pill ' + (ok === true ? 'ok' : ok === false ? 'err' : 'warn');
     };
 
-    const [label, cls] = map[status] || map.unknown;
-    statusEl.textContent = label;
-    statusEl.className = 'channel-status ' + cls;
+    // Gateway
+    if (data.gateway) {
+      const gwOk = data.gateway.status === 'running' || data.gateway.status === 'ok' || data.gateway.ok === true;
+      setPill('gw-pill', 'Gateway: ' + (gwOk ? 'Running' : 'Offline'), gwOk);
+    }
+
+    // Channels - handle nested structure from collect-status.sh
+    const channels = data.channels;
+    if (channels) {
+      // Telegram
+      let tgOk = null;
+      if (channels.telegram) {
+        if (typeof channels.telegram === 'object' && channels.telegram.running !== undefined) {
+          tgOk = channels.telegram.running;
+        } else if (channels.telegram.status) {
+          tgOk = channels.telegram.status === 'running' || channels.telegram.status === 'ok';
+        }
+      }
+      if (channels.channels && channels.channels.telegram) {
+        tgOk = channels.channels.telegram.running;
+      }
+      setPill('tg-pill', 'Telegram: ' + (tgOk ? 'Running' : tgOk === false ? 'Off' : '--'), tgOk);
+
+      // LINE
+      let lineOk = null;
+      if (channels.line) {
+        if (typeof channels.line === 'object' && channels.line.running !== undefined) {
+          lineOk = channels.line.running;
+        } else if (channels.line.status) {
+          lineOk = channels.line.status === 'running' || channels.line.status === 'ok';
+        }
+      }
+      if (channels.channels && channels.channels.line) {
+        lineOk = channels.channels.line.running;
+      }
+      setPill('line-pill', 'LINE: ' + (lineOk ? 'Running' : lineOk === false ? 'Off' : '--'), lineOk);
+    }
+
+    // Version
+    if (data.version) {
+      document.title = '⚡ Nexus Office — ' + data.version;
+    }
+
+    // Agent count
+    document.getElementById('agent-count').textContent = office.agents.length + ' Agents';
   }
 
-  function updateTimeline(data) {
-    const container = el('timeline');
-    const entries = [];
-
-    // Add status check entry
-    if (data.timestamp) {
-      entries.push({
-        time: new Date(data.timestamp),
-        text: 'Status check completed'
-      });
-    }
-
-    // Add session entries
-    if (data.sessions && Array.isArray(data.sessions)) {
-      data.sessions.forEach(s => {
-        entries.push({
-          time: new Date(s.startedAt || data.timestamp),
-          text: 'Session: ' + (s.id || 'active') + ' (' + (s.channel || 'unknown') + ')'
-        });
-      });
-    }
-
-    // Clear container using safe DOM methods
-    while (container.firstChild) {
-      container.removeChild(container.firstChild);
-    }
-
-    if (entries.length === 0) {
-      const emptyEl = document.createElement('div');
-      emptyEl.className = 'timeline-empty';
-      emptyEl.textContent = 'No activity data yet';
-      container.appendChild(emptyEl);
-      return;
-    }
-
-    entries.sort((a, b) => b.time - a.time);
-
-    entries.forEach(e => {
-      const entryEl = document.createElement('div');
-      entryEl.className = 'timeline-entry';
-
-      const timeEl = document.createElement('span');
-      timeEl.className = 'timeline-time';
-      timeEl.textContent = formatTime(e.time);
-
-      const textEl = document.createElement('span');
-      textEl.className = 'timeline-text';
-      textEl.textContent = e.text;
-
-      entryEl.appendChild(timeEl);
-      entryEl.appendChild(textEl);
-      container.appendChild(entryEl);
-    });
-  }
-
-  function formatTime(date) {
+  // Clock
+  function updateClock() {
     const now = new Date();
-    const diff = now - date;
-    if (diff < 60000) return 'just now';
-    if (diff < 3600000) return Math.floor(diff / 60000) + 'm ago';
-    if (diff < 86400000) return Math.floor(diff / 3600000) + 'h ago';
-    return date.toLocaleDateString('zh-TW', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-  }
-
-  function stateLabel(state) {
-    return { active: 'Active', idle: 'Idle', waiting: 'Waiting', offline: 'Offline' }[state] || state;
-  }
-
-  function stateColor(state) {
-    return { active: 'var(--accent)', idle: 'var(--green)', waiting: 'var(--yellow)', offline: 'var(--red)' }[state] || 'var(--text-secondary)';
+    const h = String(now.getHours()).padStart(2, '0');
+    const m = String(now.getMinutes()).padStart(2, '0');
+    const s = String(now.getSeconds()).padStart(2, '0');
+    document.getElementById('clock').textContent = h + ':' + m + ':' + s;
   }
 
   // Initialize
-  fetcher.onChange(updateDashboard);
+  fetcher.onChange(updateStatusBar);
   fetcher.startPolling();
-  visualizer.start();
+  office.start();
+
+  updateClock();
+  setInterval(updateClock, 1000);
 })();

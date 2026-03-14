@@ -1,10 +1,10 @@
 {
-  "timestamp": "2026-03-14T17:23:53Z",
+  "timestamp": "2026-03-14T17:26:48Z",
   "hostname": "Tony-MacBook-Pro-8.local",
   "gateway": {
   "ok": true,
-  "ts": 1773509026649,
-  "durationMs": 2454,
+  "ts": 1773509202510,
+  "durationMs": 963,
   "channels": {
     "telegram": {
       "configured": true,
@@ -17,7 +17,7 @@
         "ok": true,
         "status": null,
         "error": null,
-        "elapsedMs": 2311,
+        "elapsedMs": 804,
         "bot": {
           "id": 8278696228,
           "username": "hdsmarterbot",
@@ -30,7 +30,7 @@
           "hasCustomCert": false
         }
       },
-      "lastProbeAt": 1773509026507,
+      "lastProbeAt": 1773509202351,
       "mode": null,
       "accountId": "default",
       "accounts": {
@@ -45,7 +45,7 @@
             "ok": true,
             "status": null,
             "error": null,
-            "elapsedMs": 2311,
+            "elapsedMs": 804,
             "bot": {
               "id": 8278696228,
               "username": "hdsmarterbot",
@@ -58,7 +58,7 @@
               "hasCustomCert": false
             }
           },
-          "lastProbeAt": 1773509026507,
+          "lastProbeAt": 1773509202351,
           "mode": null,
           "accountId": "default"
         }
@@ -75,7 +75,7 @@
         "ok": false,
         "error": "401 - Unauthorized"
       },
-      "lastProbeAt": 1773509026649,
+      "lastProbeAt": 1773509202510,
       "mode": null,
       "accountId": "default",
       "accounts": {
@@ -90,7 +90,7 @@
             "ok": false,
             "error": "401 - Unauthorized"
           },
-          "lastProbeAt": 1773509026649,
+          "lastProbeAt": 1773509202510,
           "mode": null,
           "accountId": "default"
         }
@@ -126,27 +126,27 @@
           {
             "key": "agent:main:main",
             "updatedAt": 1773508922379,
-            "age": 101816
+            "age": 279168
           },
           {
             "key": "agent:main:line:group:c82fd7ed47158a48f5ffe75b29d2fceb0",
             "updatedAt": 1773018127128,
-            "age": 490897067
+            "age": 491074419
           },
           {
             "key": "agent:main:cron:af49db5d-3aa9-4fdb-80a7-d43368a2b1fe",
             "updatedAt": 1773018000027,
-            "age": 491024168
+            "age": 491201520
           },
           {
             "key": "agent:main:line:group:group:c9051d3971c749159da8f81e1ae911831",
             "updatedAt": 1769572051457,
-            "age": 3936972738
+            "age": 3937150090
           },
           {
             "key": "agent:main:line:group:group:ce82cc7338922a32a649ae3fe9414910e",
             "updatedAt": 1769569442529,
-            "age": 3939581666
+            "age": 3939759018
           }
         ]
       }
@@ -159,33 +159,33 @@
       {
         "key": "agent:main:main",
         "updatedAt": 1773508922379,
-        "age": 101816
+        "age": 279168
       },
       {
         "key": "agent:main:line:group:c82fd7ed47158a48f5ffe75b29d2fceb0",
         "updatedAt": 1773018127128,
-        "age": 490897067
+        "age": 491074419
       },
       {
         "key": "agent:main:cron:af49db5d-3aa9-4fdb-80a7-d43368a2b1fe",
         "updatedAt": 1773018000027,
-        "age": 491024168
+        "age": 491201520
       },
       {
         "key": "agent:main:line:group:group:c9051d3971c749159da8f81e1ae911831",
         "updatedAt": 1769572051457,
-        "age": 3936972738
+        "age": 3937150090
       },
       {
         "key": "agent:main:line:group:group:ce82cc7338922a32a649ae3fe9414910e",
         "updatedAt": 1769569442529,
-        "age": 3939581666
+        "age": 3939759018
       }
     ]
   }
 },
   "channels": {
-  "ts": 1773509032534,
+  "ts": 1773509206815,
   "channelOrder": [
     "telegram",
     "line"
