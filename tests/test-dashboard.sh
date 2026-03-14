@@ -55,6 +55,100 @@ if grep -q 'viewport-fit=cover' "$DASH/index.html"; then pass; else fail "missin
 it "should have mobile media queries"
 if grep -q '@media.*max-width.*640px' "$DASH/css/styles.css"; then pass; else fail "missing"; fi
 
+it "should have reduced-motion media query"
+if grep -q 'prefers-reduced-motion' "$DASH/css/styles.css"; then pass; else fail "missing"; fi
+
+# ─── Theme System ──────────────────────────────
+
+describe "Theme System"
+
+it "should have ThemePalette in pixel-sprites.js"
+if grep -q 'ThemePalette' "$DASH/js/pixel-sprites.js"; then pass; else fail "missing"; fi
+
+it "should have light and dark palettes"
+if grep -q "'light'" "$DASH/js/pixel-sprites.js" && \
+   grep -q "'dark'" "$DASH/js/pixel-sprites.js"; then
+  pass
+else
+  fail "missing theme variants"
+fi
+
+it "should have theme toggle button in index.html"
+if grep -q 'theme-btn' "$DASH/index.html"; then pass; else fail "missing"; fi
+
+it "should have ThemePalette.init() in app.js"
+if grep -q 'ThemePalette.init' "$DASH/js/app.js"; then pass; else fail "missing"; fi
+
+it "should have CSS custom properties for dual theme"
+if grep -q 'data-theme.*dark' "$DASH/css/styles.css" && \
+   grep -q '\-\-bg:' "$DASH/css/styles.css"; then
+  pass
+else
+  fail "missing CSS vars"
+fi
+
+it "should not hardcode canvas colors (use ThemePalette)"
+# Check that drawing functions reference ThemePalette.current
+if grep -q 'ThemePalette.current' "$DASH/js/pixel-sprites.js"; then
+  pass
+else
+  fail "hardcoded colors in sprites"
+fi
+
+# ─── Grid Layout ────────────────────────────────
+
+describe "Grid Layout (28x18 Manufacturing HQ)"
+
+it "should have 28 columns"
+if grep -q 'this.cols = 28' "$DASH/js/office-scene.js"; then pass; else fail "wrong cols"; fi
+
+it "should have 18 rows"
+if grep -q 'this.rows = 18' "$DASH/js/office-scene.js"; then pass; else fail "wrong rows"; fi
+
+it "should have new tile types (4=lobby, 5=factory, 6=corridor, 7=glass)"
+HAS_NEW_TILES=true
+for t in drawLobbyFloor drawFactoryFloor drawCorridorFloor drawGlassWall; do
+  grep -q "$t" "$DASH/js/pixel-sprites.js" || HAS_NEW_TILES=false
+done
+if $HAS_NEW_TILES; then pass; else fail "missing tile types"; fi
+
+it "should render tile types 4-7 in office-scene"
+if grep -q 'case 4:' "$DASH/js/office-scene.js" && \
+   grep -q 'case 7:' "$DASH/js/office-scene.js"; then
+  pass
+else
+  fail "missing tile cases"
+fi
+
+# ─── New Furniture ──────────────────────────────
+
+describe "New Furniture Sprites"
+
+it "should have reception desk sprite"
+if grep -q 'drawReceptionDesk' "$DASH/js/pixel-sprites.js"; then pass; else fail "missing"; fi
+
+it "should have security desk sprite"
+if grep -q 'drawSecurityDesk' "$DASH/js/pixel-sprites.js"; then pass; else fail "missing"; fi
+
+it "should have sofa sprite"
+if grep -q 'drawSofa' "$DASH/js/pixel-sprites.js"; then pass; else fail "missing"; fi
+
+it "should have monitor wall sprite"
+if grep -q 'drawMonitorWall' "$DASH/js/pixel-sprites.js"; then pass; else fail "missing"; fi
+
+it "should have conveyor belt sprite"
+if grep -q 'drawConveyorBelt' "$DASH/js/pixel-sprites.js"; then pass; else fail "missing"; fi
+
+it "should have safety sign sprite"
+if grep -q 'drawSafetySign' "$DASH/js/pixel-sprites.js"; then pass; else fail "missing"; fi
+
+it "should render new furniture types in office-scene"
+HAS_FURN=true
+for t in receptionDesk securityDesk sofa monitorWall conveyor safetySign; do
+  grep -q "'$t'" "$DASH/js/office-scene.js" || HAS_FURN=false
+done
+if $HAS_FURN; then pass; else fail "missing furniture render"; fi
+
 # ─── i18n ────────────────────────────────────
 
 describe "i18n"
@@ -76,6 +170,25 @@ if [[ -n "$I18N_LINE" && -n "$PIXEL_LINE" && "$I18N_LINE" -lt "$PIXEL_LINE" ]]; 
 else
   fail "i18n.js not first"
 fi
+
+it "should have theme-related i18n keys"
+if grep -q 'app.themeToggle' "$DASH/js/i18n.js" && \
+   grep -q 'app.themeLight' "$DASH/js/i18n.js"; then
+  pass
+else
+  fail "missing theme i18n"
+fi
+
+it "should have OpenRouter i18n keys"
+if grep -q 'settings.chatModeOr' "$DASH/js/i18n.js" && \
+   grep -q 'settings.orApiKeyLabel' "$DASH/js/i18n.js"; then
+  pass
+else
+  fail "missing OR i18n"
+fi
+
+it "should have streaming i18n key"
+if grep -q 'chat.streaming' "$DASH/js/i18n.js"; then pass; else fail "missing"; fi
 
 # ─── Agents ──────────────────────────────────
 
@@ -114,6 +227,26 @@ fi
 it "should support Gateway WebSocket mode"
 if grep -q 'WebSocket' "$DASH/js/chat-client.js"; then pass; else fail "no WebSocket"; fi
 
+it "should support OpenRouter API mode"
+if grep -q 'openrouter' "$DASH/js/chat-client.js" && \
+   grep -q 'openrouter.ai' "$DASH/js/chat-client.js"; then
+  pass
+else
+  fail "no OpenRouter support"
+fi
+
+it "should have SSE streaming support"
+if grep -q '_readSSEStream' "$DASH/js/chat-client.js" && \
+   grep -q 'stream.*true' "$DASH/js/chat-client.js"; then
+  pass
+else
+  fail "no SSE streaming"
+fi
+
+it "should have 16 agent system prompts"
+PROMPT_COUNT=$(grep -c 'You are a' "$DASH/js/chat-client.js" || true)
+if [[ "$PROMPT_COUNT" -ge 16 ]]; then pass; else fail "found $PROMPT_COUNT prompts"; fi
+
 it "should have exponential backoff"
 if grep -q 'reconnectMax\|reconnectDelay.*\*.*2\|_reconnectDelay' "$DASH/js/chat-client.js"; then
   pass
@@ -135,6 +268,22 @@ else
   pass
 fi
 
+it "should have streaming message support"
+if grep -q 'startStreamingMessage' "$DASH/js/chat-panel.js" && \
+   grep -q 'updateLastAgentMessage' "$DASH/js/chat-panel.js"; then
+  pass
+else
+  fail "missing streaming support"
+fi
+
+it "should have ARIA attributes for accessibility"
+if grep -q 'aria-label' "$DASH/js/chat-panel.js" && \
+   grep -q 'aria-live' "$DASH/js/chat-panel.js"; then
+  pass
+else
+  fail "missing ARIA"
+fi
+
 # ─── Settings Panel ──────────────────────────
 
 describe "Settings Panel"
@@ -145,8 +294,46 @@ if grep -q 'langSelect\|langLabel' "$DASH/js/settings-panel.js"; then pass; else
 it "should have chat mode selector"
 if grep -q 'modeSelect\|chatMode' "$DASH/js/settings-panel.js"; then pass; else fail "missing"; fi
 
+it "should have OpenRouter fields"
+if grep -q 'orApiKeyInput\|orFieldsContainer' "$DASH/js/settings-panel.js"; then
+  pass
+else
+  fail "missing OR fields"
+fi
+
 it "should have test connection feature"
 if grep -q 'testConnection' "$DASH/js/settings-panel.js"; then pass; else fail "missing"; fi
+
+it "should support three chat modes"
+if grep -q "'telegram'" "$DASH/js/settings-panel.js" && \
+   grep -q "'gateway'" "$DASH/js/settings-panel.js" && \
+   grep -q "'openrouter'" "$DASH/js/settings-panel.js"; then
+  pass
+else
+  fail "missing mode support"
+fi
+
+# ─── CSS Design System ──────────────────────
+
+describe "CSS Design System"
+
+it "should use CSS custom properties (no hardcoded colors)"
+VAR_COUNT=$(grep -c 'var(--' "$DASH/css/styles.css" || true)
+if [[ "$VAR_COUNT" -ge 30 ]]; then pass; else fail "found only $VAR_COUNT var() usages"; fi
+
+it "should have light theme as default"
+if grep -q ':root {' "$DASH/css/styles.css" && \
+   grep -q '\-\-bg: #f5f5f0' "$DASH/css/styles.css"; then
+  pass
+else
+  fail "light theme not default"
+fi
+
+it "should have dark theme override"
+if grep -q 'data-theme.*dark' "$DASH/css/styles.css"; then pass; else fail "missing"; fi
+
+it "should have focus-visible styles for accessibility"
+if grep -q 'focus-visible' "$DASH/css/styles.css"; then pass; else fail "missing"; fi
 
 # ─── Script Load Order ───────────────────────
 
@@ -168,6 +355,16 @@ if [[ -n "$CP_LINE" && -n "$APP_LINE" && "$CP_LINE" -lt "$APP_LINE" ]]; then
 else
   fail "wrong order"
 fi
+
+# ─── Accessibility ──────────────────────────
+
+describe "Accessibility"
+
+it "should have ARIA roles in index.html"
+if grep -q 'role=' "$DASH/index.html"; then pass; else fail "missing ARIA roles"; fi
+
+it "should have aria-labels on buttons"
+if grep -q 'aria-label' "$DASH/index.html"; then pass; else fail "missing"; fi
 
 # ─── Skills ──────────────────────────────────
 
@@ -191,11 +388,11 @@ if $ALL_SKILLS; then pass; else fail "missing SKILL.md files"; fi
 
 # ─── Summary ──────────────────────────────────
 
-printf "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+printf "\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n"
 printf "  Results: \033[0;32m%d passed\033[0m" "$PASS"
 if [[ $FAIL -gt 0 ]]; then
   printf ", \033[0;31m%d failed\033[0m" "$FAIL"
 fi
-printf "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+printf "\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n\n"
 
 exit "$FAIL"

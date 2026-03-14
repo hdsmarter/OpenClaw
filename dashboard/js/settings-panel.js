@@ -1,6 +1,7 @@
 /**
  * settings-panel.js — Settings modal (SRP)
- * Language selector, chat mode (Telegram/Gateway), connection settings
+ * Language selector, tri-mode chat (Telegram/Gateway/OpenRouter), connection settings
+ * All strings via I18n.t() — zero hardcoded text
  */
 class SettingsPanel {
   static get UI_TEXT() {
@@ -10,12 +11,16 @@ class SettingsPanel {
       chatModeLabel:     I18n.t('settings.chatModeLabel'),
       chatModeTg:        I18n.t('settings.chatModeTg'),
       chatModeGw:        I18n.t('settings.chatModeGw'),
+      chatModeOr:        I18n.t('settings.chatModeOr'),
       urlLabel:          I18n.t('settings.urlLabel'),
       urlPlaceholder:    I18n.t('settings.urlPlaceholder'),
       tokenLabel:        I18n.t('settings.tokenLabel'),
       tokenPlaceholder:  I18n.t('settings.tokenPlaceholder'),
       tgTokenLabel:      I18n.t('settings.tgTokenLabel'),
       tgChatIdLabel:     I18n.t('settings.tgChatIdLabel'),
+      orApiKeyLabel:     I18n.t('settings.orApiKeyLabel'),
+      orModelLabel:      I18n.t('settings.orModelLabel'),
+      orApiKeyPlaceholder: I18n.t('settings.orApiKeyPlaceholder'),
       testBtn:           I18n.t('settings.testBtn'),
       saveBtn:           I18n.t('settings.saveBtn'),
       cancelBtn:         I18n.t('settings.cancelBtn'),
@@ -33,7 +38,6 @@ class SettingsPanel {
     this.isOpen = false;
     this._build();
 
-    // Re-render text labels on language change
     I18n.onChange(() => this._updateTexts());
   }
 
@@ -48,6 +52,8 @@ class SettingsPanel {
     // Modal
     this.modal = document.createElement('div');
     this.modal.className = 'settings-modal';
+    this.modal.setAttribute('role', 'dialog');
+    this.modal.setAttribute('aria-label', T.title);
 
     // Title
     this.titleEl = document.createElement('h2');
@@ -62,9 +68,10 @@ class SettingsPanel {
     this.langLabel.textContent = T.langLabel;
     this.langSelect = document.createElement('select');
     this.langSelect.className = 'settings-input settings-select';
+    this.langSelect.setAttribute('aria-label', T.langLabel);
     const langOptions = [
-      { value: 'zh-TW', label: '繁體中文' },
-      { value: 'zh-CN', label: '简体中文' },
+      { value: 'zh-TW', label: '\u7E41\u9AD4\u4E2D\u6587' },
+      { value: 'zh-CN', label: '\u7B80\u4F53\u4E2D\u6587' },
       { value: 'en',    label: 'English' },
     ];
     for (const opt of langOptions) {
@@ -85,14 +92,19 @@ class SettingsPanel {
     this.modeLabel.textContent = T.chatModeLabel;
     this.modeSelect = document.createElement('select');
     this.modeSelect.className = 'settings-input settings-select';
+    this.modeSelect.setAttribute('aria-label', T.chatModeLabel);
     this._tgOption = document.createElement('option');
     this._tgOption.value = 'telegram';
     this._tgOption.textContent = T.chatModeTg;
     this._gwOption = document.createElement('option');
     this._gwOption.value = 'gateway';
     this._gwOption.textContent = T.chatModeGw;
+    this._orOption = document.createElement('option');
+    this._orOption.value = 'openrouter';
+    this._orOption.textContent = T.chatModeOr;
     this.modeSelect.appendChild(this._tgOption);
     this.modeSelect.appendChild(this._gwOption);
+    this.modeSelect.appendChild(this._orOption);
     this.modeSelect.value = this.cc.mode;
     this.modeSelect.addEventListener('change', () => this._toggleModeFields());
     this.modeGroup.appendChild(this.modeLabel);
@@ -130,9 +142,28 @@ class SettingsPanel {
 
     this.modal.appendChild(this.gwFieldsContainer);
 
+    // ── OpenRouter fields ───────────────────────
+    this.orFieldsContainer = document.createElement('div');
+    this.orFieldsContainer.className = 'settings-mode-fields';
+
+    this._addFieldTo(this.orFieldsContainer, T.orApiKeyLabel, 'or-api-key');
+    this.orApiKeyInput = this.orFieldsContainer.querySelector('.settings-input-or-api-key');
+    this.orApiKeyInput.placeholder = T.orApiKeyPlaceholder;
+    this.orApiKeyInput.type = 'password';
+    this.orApiKeyInput.value = this.cc.orApiKey;
+    this.orApiKeyInput.autocomplete = 'off';
+
+    this._addFieldTo(this.orFieldsContainer, T.orModelLabel, 'or-model');
+    this.orModelInput = this.orFieldsContainer.querySelector('.settings-input-or-model');
+    this.orModelInput.value = this.cc.orModel;
+    this.orModelInput.placeholder = ChatClient.DEFAULTS.openRouterModel;
+
+    this.modal.appendChild(this.orFieldsContainer);
+
     // Status indicator
     this.statusEl = document.createElement('div');
     this.statusEl.className = 'settings-status';
+    this.statusEl.setAttribute('aria-live', 'polite');
     this.modal.appendChild(this.statusEl);
 
     // Buttons row
@@ -173,25 +204,28 @@ class SettingsPanel {
     const input = document.createElement('input');
     input.type = 'text';
     input.className = 'settings-input settings-input-' + name;
+    input.setAttribute('aria-label', label);
     group.appendChild(lbl);
     group.appendChild(input);
     container.appendChild(group);
   }
 
   _toggleModeFields() {
-    const isTg = this.modeSelect.value === 'telegram';
-    this.tgFieldsContainer.style.display = isTg ? 'block' : 'none';
-    this.gwFieldsContainer.style.display = isTg ? 'none' : 'block';
+    const mode = this.modeSelect.value;
+    this.tgFieldsContainer.style.display = mode === 'telegram' ? 'block' : 'none';
+    this.gwFieldsContainer.style.display = mode === 'gateway' ? 'block' : 'none';
+    this.orFieldsContainer.style.display = mode === 'openrouter' ? 'block' : 'none';
   }
 
-  /** Re-render text labels on language change */
   _updateTexts() {
     const T = SettingsPanel.UI_TEXT;
     this.titleEl.textContent = T.title;
+    this.modal.setAttribute('aria-label', T.title);
     this.langLabel.textContent = T.langLabel;
     this.modeLabel.textContent = T.chatModeLabel;
     this._tgOption.textContent = T.chatModeTg;
     this._gwOption.textContent = T.chatModeGw;
+    this._orOption.textContent = T.chatModeOr;
     this.testBtn.textContent = T.testBtn;
     this.saveBtn.textContent = T.saveBtn;
     this.cancelBtn.textContent = T.cancelBtn;
@@ -206,6 +240,8 @@ class SettingsPanel {
     this.tokenInput.value = this.cc.token;
     this.tgTokenInput.value = this.cc.tgToken;
     this.tgChatIdInput.value = this.cc.tgChatId;
+    this.orApiKeyInput.value = this.cc.orApiKey;
+    this.orModelInput.value = this.cc.orModel;
     this._toggleModeFields();
     this._updateStatus();
     this.overlay.classList.add('open');
@@ -235,8 +271,15 @@ class SettingsPanel {
     this.testBtn.disabled = true;
 
     let ok;
-    if (this.modeSelect.value === 'telegram') {
+    const mode = this.modeSelect.value;
+    if (mode === 'telegram') {
       ok = await this.cc.testConnection({ mode: 'telegram', tgToken: this.tgTokenInput.value });
+    } else if (mode === 'openrouter') {
+      ok = await this.cc.testConnection({
+        mode: 'openrouter',
+        orApiKey: this.orApiKeyInput.value,
+        orModel: this.orModelInput.value || ChatClient.DEFAULTS.openRouterModel,
+      });
     } else {
       ok = await this.cc.testConnection({ mode: 'gateway', url: this.urlInput.value, token: this.tokenInput.value });
     }
@@ -247,10 +290,8 @@ class SettingsPanel {
   }
 
   _save() {
-    // Apply language first
     I18n.setLang(this.langSelect.value);
 
-    // Save chat client settings
     this.cc.disconnect();
     this.cc.saveSettings({
       mode: this.modeSelect.value,
@@ -258,6 +299,8 @@ class SettingsPanel {
       token: this.tokenInput.value,
       tgToken: this.tgTokenInput.value,
       tgChatId: this.tgChatIdInput.value,
+      orApiKey: this.orApiKeyInput.value,
+      orModel: this.orModelInput.value || ChatClient.DEFAULTS.openRouterModel,
     });
     this.cc.connect();
     this.close();

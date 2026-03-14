@@ -1,10 +1,10 @@
 /**
  * chat-panel.js — Chat panel UI (SRP)
  * Desktop: right-side 360px slide-in / Mobile: bottom 70vh sheet
- * All strings via I18n.t()
+ * Supports streaming messages from OpenRouter
+ * All strings via I18n.t() — zero hardcoded text
  */
 class ChatPanel {
-  /** Dynamic UI text via i18n */
   static get UI_TEXT() {
     return {
       title:        I18n.t('chat.title'),
@@ -12,6 +12,7 @@ class ChatPanel {
       send:         I18n.t('chat.send'),
       offline:      I18n.t('chat.offline'),
       typing:       I18n.t('chat.typing'),
+      streaming:    I18n.t('chat.streaming'),
       close:        I18n.t('chat.close'),
       noAgent:      I18n.t('chat.noAgent'),
       openTelegram: I18n.t('chat.openTelegram'),
@@ -21,10 +22,10 @@ class ChatPanel {
   constructor() {
     this.isOpen = false;
     this.agent = null;
-    this.onSend = null; // callback(agentId, text)
+    this.onSend = null;
+    this._streaming = false;
     this._build();
 
-    // Re-render text on language change
     I18n.onChange(() => this._updateTexts());
   }
 
@@ -34,11 +35,14 @@ class ChatPanel {
     // Overlay (mobile backdrop)
     this.overlay = document.createElement('div');
     this.overlay.className = 'chat-overlay';
+    this.overlay.setAttribute('role', 'presentation');
     this.overlay.addEventListener('click', () => this.close());
 
     // Panel container
     this.el = document.createElement('div');
     this.el.className = 'chat-panel';
+    this.el.setAttribute('role', 'dialog');
+    this.el.setAttribute('aria-label', T.title);
 
     // Drag handle (mobile sheet)
     this.handle = document.createElement('div');
@@ -59,6 +63,7 @@ class ChatPanel {
     this.closeBtn.className = 'chat-close-btn';
     this.closeBtn.textContent = '\u2715';
     this.closeBtn.title = T.close;
+    this.closeBtn.setAttribute('aria-label', T.close);
     this.closeBtn.addEventListener('click', () => this.close());
 
     this.header.appendChild(this.titleEl);
@@ -68,6 +73,7 @@ class ChatPanel {
     // Offline banner
     this.offlineBanner = document.createElement('div');
     this.offlineBanner.className = 'chat-offline';
+    this.offlineBanner.setAttribute('role', 'alert');
     this.offlineBanner.textContent = T.offline;
     this.el.appendChild(this.offlineBanner);
 
@@ -84,11 +90,14 @@ class ChatPanel {
     // Messages list
     this.messageList = document.createElement('div');
     this.messageList.className = 'chat-messages';
+    this.messageList.setAttribute('role', 'log');
+    this.messageList.setAttribute('aria-live', 'polite');
     this.el.appendChild(this.messageList);
 
     // Typing indicator
     this.typingEl = document.createElement('div');
     this.typingEl.className = 'chat-typing';
+    this.typingEl.setAttribute('aria-live', 'polite');
     this.typingEl.textContent = T.typing;
     this.typingEl.style.display = 'none';
     this.el.appendChild(this.typingEl);
@@ -101,6 +110,7 @@ class ChatPanel {
     this.input.type = 'text';
     this.input.className = 'chat-input';
     this.input.placeholder = T.placeholder;
+    this.input.setAttribute('aria-label', T.placeholder);
     this.input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
@@ -121,17 +131,18 @@ class ChatPanel {
     document.body.appendChild(this.el);
   }
 
-  /** Re-render all text labels when language changes */
   _updateTexts() {
     const T = ChatPanel.UI_TEXT;
     this.closeBtn.title = T.close;
+    this.closeBtn.setAttribute('aria-label', T.close);
     this.offlineBanner.textContent = T.offline;
     this.tgLink.textContent = T.openTelegram;
-    this.typingEl.textContent = T.typing;
+    this.typingEl.textContent = this._streaming ? T.streaming : T.typing;
     this.input.placeholder = T.placeholder;
+    this.input.setAttribute('aria-label', T.placeholder);
     this.sendBtn.textContent = T.send;
+    this.el.setAttribute('aria-label', T.title);
 
-    // Re-render title if panel is open
     if (this.isOpen && this.agent) {
       this.titleEl.textContent = '\u26A1 ' + I18n.agentName(this.agent.id) + ' \u2014 ' + T.title;
     } else if (this.isOpen) {
@@ -144,7 +155,8 @@ class ChatPanel {
   open(agent) {
     this.agent = agent;
     this.isOpen = true;
-    this.messageList.textContent = ''; // clear
+    this._streaming = false;
+    this.messageList.textContent = '';
     const T = ChatPanel.UI_TEXT;
     this.titleEl.textContent = agent
       ? '\u26A1 ' + I18n.agentName(agent.id) + ' \u2014 ' + T.title
@@ -157,6 +169,7 @@ class ChatPanel {
   close() {
     this.isOpen = false;
     this.agent = null;
+    this._streaming = false;
     this.el.classList.remove('open');
     this.overlay.classList.remove('open');
   }
@@ -167,12 +180,12 @@ class ChatPanel {
     this.sendBtn.disabled = offline;
   }
 
-  /** Show Telegram fallback link when all transports fail */
   showTelegramFallback(show) {
     this.tgLink.style.display = show ? 'block' : 'none';
   }
 
   setTyping(show) {
+    this.typingEl.textContent = ChatPanel.UI_TEXT.typing;
     this.typingEl.style.display = show ? 'block' : 'none';
     if (show) this._scrollToBottom();
   }
@@ -186,6 +199,42 @@ class ChatPanel {
     msg.appendChild(bubble);
     this.messageList.appendChild(msg);
     this._scrollToBottom();
+  }
+
+  /** Start a streaming message — creates an empty agent bubble */
+  startStreamingMessage() {
+    this._streaming = true;
+    this.typingEl.textContent = ChatPanel.UI_TEXT.streaming;
+    this.typingEl.style.display = 'block';
+    const msg = document.createElement('div');
+    msg.className = 'chat-msg chat-msg-agent';
+    msg.setAttribute('data-streaming', 'true');
+    const bubble = document.createElement('div');
+    bubble.className = 'chat-bubble';
+    bubble.textContent = '';
+    msg.appendChild(bubble);
+    this.messageList.appendChild(msg);
+    this._scrollToBottom();
+  }
+
+  /** Update the last agent bubble with streaming text */
+  updateLastAgentMessage(text) {
+    const streamingMsg = this.messageList.querySelector('[data-streaming="true"]');
+    if (streamingMsg) {
+      const bubble = streamingMsg.querySelector('.chat-bubble');
+      if (bubble) bubble.textContent = text;
+      this._scrollToBottom();
+    }
+  }
+
+  /** Finalize streaming message */
+  finalizeStreaming() {
+    const streamingMsg = this.messageList.querySelector('[data-streaming="true"]');
+    if (streamingMsg) {
+      streamingMsg.removeAttribute('data-streaming');
+    }
+    this._streaming = false;
+    this.typingEl.style.display = 'none';
   }
 
   _sendMessage() {

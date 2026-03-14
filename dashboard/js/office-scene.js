@@ -1,17 +1,19 @@
 /**
- * office-scene.js — Enterprise office scene with AI agents
+ * office-scene.js — Manufacturing HQ office scene with AI agents
  * Canvas 2D tile-based rendering, FSM agents, A* pathfinding
+ * 28x18 grid: lobby, security, main office, factory, kitchen, meeting room
+ * Zero hardcoded colors — all via ThemePalette
  */
 
 class OfficeScene {
   constructor(canvasId) {
     this.canvas = document.getElementById(canvasId);
     this.ctx = this.canvas.getContext('2d');
-    this.T = TILE; // tile size
+    this.T = TILE;
 
-    // Office grid (20 cols x 14 rows)
-    this.cols = 20;
-    this.rows = 14;
+    // Manufacturing HQ grid (28 cols x 18 rows)
+    this.cols = 28;
+    this.rows = 18;
 
     // Scale to fit viewport
     this.scale = 1;
@@ -44,7 +46,7 @@ class OfficeScene {
     this.mouseY = -1;
     this.hoveredAgent = null;
     this.selectedAgent = null;
-    this.onAgentClick = null; // callback(agent)
+    this.onAgentClick = null;
 
     this.canvas.addEventListener('mousemove', (e) => this.onMouseMove(e));
     this.canvas.addEventListener('mouseleave', () => { this.hoveredAgent = null; });
@@ -58,38 +60,47 @@ class OfficeScene {
     }, { passive: false });
   }
 
-  // Office layout: 0=floor, 1=wall, 2=kitchen, 3=carpet (meeting room)
+  // Tile types: 0=floor, 1=wall, 2=kitchen, 3=carpet, 4=lobby, 5=factory, 6=corridor, 7=glass wall
   buildLayout() {
-    // 20x14 layout
+    const W = 1, F = 0, K = 2, C = 3, L = 4, X = 5, R = 6, G = 7;
+    // 28x18 Manufacturing HQ
     this.map = [
       // Row 0: top wall
-      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-      // Row 1: wall + bookshelf area
-      [1,1,1,1,1,1,1,1,1,1,1,1,1,2,2,2,2,2,1,1],
-      // Row 2: office floor + kitchen
-      [1,0,0,0,0,0,0,0,0,0,0,0,1,2,2,2,2,2,1,1],
-      // Row 3
-      [1,0,0,0,0,0,0,0,0,0,0,0,1,2,2,2,2,2,1,1],
-      // Row 4
-      [1,0,0,0,0,0,0,0,0,0,0,0,1,2,2,2,2,2,1,1],
-      // Row 5
-      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-      // Row 6
-      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-      // Row 7
-      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-      // Row 8
-      [1,0,0,0,0,0,0,0,0,0,0,0,1,3,3,3,3,3,3,1],
-      // Row 9
-      [1,0,0,0,0,0,0,0,0,0,0,0,1,3,3,3,3,3,3,1],
-      // Row 10
-      [1,0,0,0,0,0,0,0,0,0,0,0,1,3,3,3,3,3,3,1],
-      // Row 11
-      [1,0,0,0,0,0,0,0,0,0,0,0,1,3,3,3,3,3,3,1],
-      // Row 12
-      [1,0,0,0,0,0,0,0,0,0,0,0,1,3,3,3,3,3,3,1],
-      // Row 13: bottom wall
-      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+      [W,W,W,W,W,W,W,W,W,W,W,W,W,W,W,W,W,W,W,W,W,W,W,W,W,W,W,W],
+      // Row 1: lobby | main office corridor | factory
+      [W,L,L,L,L,L,W,F,F,F,F,F,F,F,F,F,F,F,F,F,F,G,X,X,X,X,X,W],
+      // Row 2: lobby | office | factory
+      [W,L,L,L,L,L,W,F,F,F,F,F,F,F,F,F,F,F,F,F,F,G,X,X,X,X,X,W],
+      // Row 3: lobby | office desks row 1 | factory
+      [W,L,L,L,L,L,W,F,F,F,F,F,F,F,F,F,F,F,F,F,F,G,X,X,X,X,X,W],
+      // Row 4: corridor connecting lobby to office
+      [W,R,R,R,R,R,R,R,R,R,R,R,R,R,R,R,R,R,R,R,R,R,X,X,X,X,X,W],
+      // Row 5: wall separator
+      [W,W,W,W,W,W,W,F,F,F,F,F,F,F,F,F,F,F,F,F,F,W,W,W,W,W,W,W],
+      // Row 6: security room | office | kitchen
+      [W,F,F,F,F,F,W,F,F,F,F,F,F,F,F,F,F,F,F,F,F,W,K,K,K,K,K,W],
+      // Row 7: security room | office | kitchen
+      [W,F,F,F,F,F,W,F,F,F,F,F,F,F,F,F,F,F,F,F,F,W,K,K,K,K,K,W],
+      // Row 8: security room | office desks row 2 | kitchen
+      [W,F,F,F,F,F,W,F,F,F,F,F,F,F,F,F,F,F,F,F,F,W,K,K,K,K,K,W],
+      // Row 9: wall separator
+      [W,W,W,W,W,W,W,F,F,F,F,F,F,F,F,F,F,F,F,F,F,W,K,K,K,K,K,W],
+      // Row 10: meeting room | office
+      [W,C,C,C,C,C,W,F,F,F,F,F,F,F,F,F,F,F,F,F,F,W,W,W,W,W,W,W],
+      // Row 11: meeting room | office
+      [W,C,C,C,C,C,W,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,W],
+      // Row 12: meeting room | office
+      [W,C,C,C,C,C,W,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,W],
+      // Row 13: meeting room | office desks row 3
+      [W,C,C,C,C,C,W,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,W],
+      // Row 14: meeting room | office
+      [W,C,C,C,C,C,W,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,W],
+      // Row 15: meeting room | office
+      [W,C,C,C,C,C,W,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,W],
+      // Row 16: meeting room | office
+      [W,C,C,C,C,C,W,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,W],
+      // Row 17: bottom wall
+      [W,W,W,W,W,W,W,W,W,W,W,W,W,W,W,W,W,W,W,W,W,W,W,W,W,W,W,W],
     ];
   }
 
@@ -105,104 +116,113 @@ class OfficeScene {
       });
     };
 
-    // === Main office area (left) ===
+    // ── Lobby (cols 1-5, rows 1-3) ──────────────────
+    f('receptionDesk', 2, 2, { w: 2 });
+    f('sofa', 1, 1, { zOff: 4 });
+    f('sofa', 4, 1, { zOff: 4 });
+    f('plant', 1, 3);
+    f('plant', 5, 3);
 
-    // Top row of desks (row 3-4) with computers
-    f('desk', 2, 3); f('computer', 2, 2);
-    f('desk', 4, 3); f('computer', 4, 2);
-    f('desk', 6, 3); f('computer', 6, 2);
-    f('desk', 8, 3); f('computer', 8, 2);
-    f('desk', 10, 3); f('computer', 10, 2);
+    // ── Security Room (cols 1-5, rows 6-8) ──────────
+    f('securityDesk', 2, 7);
+    f('monitorWall', 1, 6, { zOff: 4, w: 3 });
+    f('chair', 2, 8, { zOff: T + 8 });
 
-    // Middle row of desks (row 6) with computers
-    f('desk', 1, 6); f('computer', 1, 5);
-    f('desk', 3, 6); f('computer', 3, 5);
-    f('desk', 5, 6); f('computer', 5, 5);
-    f('desk', 7, 6); f('computer', 7, 5);
-    f('desk', 9, 6); f('computer', 9, 5);
-    f('desk', 11, 6); f('computer', 11, 5);
+    // ── Main Office — Row 1: desks at row 3 (6 seats) ─
+    f('desk', 9, 2);  f('computer', 9, 1);
+    f('desk', 11, 2); f('computer', 11, 1);
+    f('desk', 13, 2); f('computer', 13, 1);
+    f('desk', 15, 2); f('computer', 15, 1);
+    f('desk', 17, 2); f('computer', 17, 1);
+    f('desk', 19, 2); f('computer', 19, 1);
+    // Chairs
+    f('chair', 9, 3, { zOff: T + 8 });
+    f('chair', 11, 3, { zOff: T + 8 });
+    f('chair', 13, 3, { zOff: T + 8 });
+    f('chair', 15, 3, { zOff: T + 8 });
+    f('chair', 17, 3, { zOff: T + 8 });
+    f('chair', 19, 3, { zOff: T + 8 });
 
-    // Bottom row of desks (row 9-10) with computers
-    f('desk', 2, 9); f('computer', 2, 8);
-    f('desk', 4, 9); f('computer', 4, 8);
-    f('desk', 6, 9); f('computer', 6, 8);
-    f('desk', 8, 9); f('computer', 8, 8);
-    f('desk', 10, 9); f('computer', 10, 8);
-
-    // Chairs for top desks (below desks, row 5)
-    f('chair', 2, 5, { zOff: T + 8 });
-    f('chair', 4, 5, { zOff: T + 8 });
-    f('chair', 6, 5, { zOff: T + 8 });
-    f('chair', 8, 5, { zOff: T + 8 });
-    f('chair', 10, 5, { zOff: T + 8 });
-
-    // Chairs for middle desks (below desks, row 8)
-    f('chair', 1, 8, { zOff: T + 8 });
-    f('chair', 3, 8, { zOff: T + 8 });
-    f('chair', 5, 8, { zOff: T + 8 });
-    f('chair', 7, 8, { zOff: T + 8 });
+    // ── Main Office — Row 2: desks at row 7 (6 seats) ─
+    f('desk', 9, 7);  f('computer', 9, 6);
+    f('desk', 11, 7); f('computer', 11, 6);
+    f('desk', 13, 7); f('computer', 13, 6);
+    f('desk', 15, 7); f('computer', 15, 6);
+    f('desk', 17, 7); f('computer', 17, 6);
+    f('desk', 19, 7); f('computer', 19, 6);
+    // Chairs
     f('chair', 9, 8, { zOff: T + 8 });
     f('chair', 11, 8, { zOff: T + 8 });
+    f('chair', 13, 8, { zOff: T + 8 });
+    f('chair', 15, 8, { zOff: T + 8 });
+    f('chair', 17, 8, { zOff: T + 8 });
+    f('chair', 19, 8, { zOff: T + 8 });
 
-    // Chairs for bottom desks (below desks, row 11)
-    f('chair', 2, 11, { zOff: T + 8 });
-    f('chair', 4, 11, { zOff: T + 8 });
-    f('chair', 6, 11, { zOff: T + 8 });
-    f('chair', 8, 11, { zOff: T + 8 });
-    f('chair', 10, 11, { zOff: T + 8 });
+    // ── Main Office — Row 3: desks at row 13 (4 seats) ─
+    f('desk', 10, 12); f('computer', 10, 11);
+    f('desk', 13, 12); f('computer', 13, 11);
+    f('desk', 16, 12); f('computer', 16, 11);
+    f('desk', 19, 12); f('computer', 19, 11);
+    // Chairs
+    f('chair', 10, 13, { zOff: T + 8 });
+    f('chair', 13, 13, { zOff: T + 8 });
+    f('chair', 16, 13, { zOff: T + 8 });
+    f('chair', 19, 13, { zOff: T + 8 });
 
-    // Bookshelves on top wall
-    f('bookshelf', 1, 1, { zOff: 4 });
-    f('bookshelf', 3, 1, { zOff: 4 });
-    f('bookshelf', 5, 1, { zOff: 4 });
-    f('bookshelf', 7, 1, { zOff: 4 });
+    // Bookshelves along top wall of main office
+    f('bookshelf', 8, 5, { zOff: 4 });
+    f('bookshelf', 10, 5, { zOff: 4 });
+    f('bookshelf', 12, 5, { zOff: 4 });
 
-    // Plants (moved to avoid middle-row desks)
-    f('plant', 1, 2);
-    f('plant', 11, 2);
-    f('plant', 1, 12);
-    f('plant', 11, 12);
+    // Plants in office area
+    f('plant', 8, 1);
+    f('plant', 20, 1);
+    f('plant', 8, 16);
+    f('plant', 20, 16);
+    f('plant', 14, 16);
 
-    // === Kitchen area (top right) ===
-    f('vending', 13, 1, { zOff: 4 });
-    f('fridge', 17, 1, { zOff: 4 });
-    f('coffeeMachine', 15, 1, { zOff: 4 });
-    f('clock', 15, 1, { zOff: 0 }); // wall-mounted
+    // ── Kitchen / Break Room (cols 22-26, rows 6-9) ──
+    f('vending', 22, 6, { zOff: 4 });
+    f('coffeeMachine', 24, 6, { zOff: 4 });
+    f('fridge', 26, 6, { zOff: 4 });
+    f('waterCooler', 22, 9);
+    f('clock', 24, 6, { zOff: 0 });
 
-    // === Meeting room (bottom right) ===
-    // Big meeting table
-    f('meetingTable', 15, 10, { w: 2 });
-    // Whiteboard on wall
-    f('whiteboard', 14, 8, { zOff: 4, w: 2 });
-    // Painting
-    f('painting', 17, 8, { zOff: 4 });
-    // Plants in meeting room
-    f('plant', 13, 12);
-    f('plant', 18, 12);
-    // Water cooler
-    f('waterCooler', 18, 9);
+    // ── Factory Visible Area (cols 22-26, rows 1-4) ──
+    f('conveyor', 23, 2);
+    f('conveyor', 25, 2);
+    f('safetySign', 22, 1, { zOff: 4 });
+    f('safetySign', 26, 1, { zOff: 4 });
+    f('conveyor', 23, 4);
 
-    // Desk seats — 3 rows × 16 agents
+    // ── Meeting Room (cols 1-5, rows 10-16) ──────────
+    f('meetingTable', 2, 12, { w: 2 });
+    f('whiteboard', 1, 10, { zOff: 4, w: 3 });
+    f('painting', 5, 10, { zOff: 4 });
+    f('plant', 1, 16);
+    f('plant', 5, 16);
+
+    // ── Desk seats (16 agents) ──────────────────────
     this.seats = [
-      // Top row (5 seats, row 4)
-      { col: 2, row: 4, dir: 'down' },
-      { col: 4, row: 4, dir: 'down' },
-      { col: 6, row: 4, dir: 'down' },
-      { col: 8, row: 4, dir: 'down' },
-      { col: 10, row: 4, dir: 'down' },
-      // Middle row (6 seats, row 7)
-      { col: 1, row: 7, dir: 'down' },
-      { col: 3, row: 7, dir: 'down' },
-      { col: 5, row: 7, dir: 'down' },
-      { col: 7, row: 7, dir: 'down' },
-      { col: 9, row: 7, dir: 'down' },
-      { col: 11, row: 7, dir: 'down' },
-      // Bottom row (5 seats, row 10)
-      { col: 2, row: 10, dir: 'down' },
-      { col: 4, row: 10, dir: 'down' },
-      { col: 6, row: 10, dir: 'down' },
-      { col: 8, row: 10, dir: 'down' },
-      { col: 10, row: 10, dir: 'down' },
+      // Main office — upper row (6 seats, row 3)
+      { col: 9,  row: 3, dir: 'down' },  // #0 Data Analyst
+      { col: 11, row: 3, dir: 'down' },  // #1 Marketing
+      { col: 13, row: 3, dir: 'down' },  // #2 Finance
+      { col: 15, row: 3, dir: 'down' },  // #3 HR
+      { col: 17, row: 3, dir: 'down' },  // #4 Supply Chain
+      { col: 19, row: 3, dir: 'down' },  // #5 IT Architect
+      // Main office — middle row (6 seats, row 8)
+      { col: 9,  row: 8, dir: 'down' },  // #6 Project Mgr
+      { col: 11, row: 8, dir: 'down' },  // #7 Customer Svc
+      { col: 13, row: 8, dir: 'down' },  // #8 Legal
+      { col: 15, row: 8, dir: 'down' },  // #9 Product Mgr
+      { col: 17, row: 8, dir: 'down' },  // #10 UX Designer
+      { col: 19, row: 8, dir: 'down' },  // #11 Content
+      // Main office — lower row (4 seats, row 13)
+      { col: 10, row: 13, dir: 'down' }, // #12 BD
+      { col: 13, row: 13, dir: 'down' }, // #13 Quality
+      { col: 16, row: 13, dir: 'down' }, // #14 Security
+      { col: 19, row: 13, dir: 'down' }, // #15 HR Director
     ];
   }
 
@@ -211,14 +231,27 @@ class OfficeScene {
     for (let r = 0; r < this.rows; r++) {
       this.walkable[r] = [];
       for (let c = 0; c < this.cols; c++) {
-        this.walkable[r][c] = (this.map[r][c] !== 1);
+        const tile = this.map[r][c];
+        // Wall(1), Factory(5), Glass wall(7) = not walkable
+        this.walkable[r][c] = (tile !== 1 && tile !== 5 && tile !== 7);
       }
     }
-    // Block furniture positions (desks, bookshelves, etc.)
-    for (const f of this.furniture) {
-      if (['desk', 'bookshelf', 'vending', 'fridge', 'meetingTable'].includes(f.type)) {
-        if (f.row >= 0 && f.row < this.rows && f.col >= 0 && f.col < this.cols) {
-          this.walkable[f.row][f.col] = false;
+    // Block furniture positions
+    const blocking = [
+      'desk', 'bookshelf', 'vending', 'fridge', 'meetingTable',
+      'receptionDesk', 'securityDesk', 'conveyor', 'monitorWall'
+    ];
+    for (const furn of this.furniture) {
+      if (blocking.includes(furn.type)) {
+        if (furn.row >= 0 && furn.row < this.rows && furn.col >= 0 && furn.col < this.cols) {
+          this.walkable[furn.row][furn.col] = false;
+          // Block extra tiles for wide furniture
+          if (furn.w && furn.w > 1) {
+            for (let i = 1; i < furn.w; i++) {
+              const nc = furn.col + i;
+              if (nc < this.cols) this.walkable[furn.row][nc] = false;
+            }
+          }
         }
       }
     }
@@ -226,50 +259,39 @@ class OfficeScene {
 
   spawnAgents() {
     const palettes = PixelSprites.agentPalettes;
-    const count = Math.min(palettes.length, this.seats.length); // 16
+    const count = Math.min(palettes.length, this.seats.length);
     for (let i = 0; i < count; i++) {
       const seat = this.seats[i];
       const agent = {
         id: i,
         palette: palettes[i],
         name: I18n.agentName(i),
-        // Position (pixel coords)
         x: seat.col * this.T + this.T / 2,
         y: seat.row * this.T + this.T / 2,
-        // Grid position
         col: seat.col,
         row: seat.row,
-        // FSM state (animation)
-        state: 'type', // idle, walk, type
+        state: 'type',
         dir: 'down',
         frame: Math.floor(Math.random() * 4),
         frameTimer: 0,
-        // Real AI status (separate from animation FSM)
-        realStatus: 'idle', // active | idle | offline
+        realStatus: 'idle',
         currentTask: null,
-        // Path
         path: [],
         pathIdx: 0,
-        // Timers
         stateTimer: Math.random() * 8 + 4,
-        // Seat assignment
         seatIdx: i,
-        // Speech
         speech: null,
         speechTimer: 0,
-        // Alive
         active: true,
       };
       this.agents.push(agent);
     }
 
-    // Re-sync agent names on language change
     I18n.onChange(() => {
       for (const a of this.agents) a.name = I18n.agentName(a.id);
     });
   }
 
-  /** Update real agent status (called from app.js) */
   updateAgentStatus(agentId, status, task) {
     const agent = this.agents.find(a => a.id === agentId);
     if (agent) {
@@ -296,7 +318,6 @@ class OfficeScene {
       const ck = key(current.col, current.row);
 
       if (current.col === toCol && current.row === toRow) {
-        // Reconstruct path
         const path = [];
         let node = current;
         while (node) {
@@ -308,7 +329,6 @@ class OfficeScene {
 
       closed.add(ck);
 
-      // 4 directions
       for (const [dc, dr] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
         const nc = current.col + dc;
         const nr = current.row + dr;
@@ -330,21 +350,19 @@ class OfficeScene {
         }
       }
     }
-    return []; // No path found
+    return [];
   }
 
   // Update agent FSM
   updateAgent(agent, dt) {
     agent.frameTimer += dt;
 
-    // Animation frame update
     const frameRate = agent.state === 'walk' ? 0.2 : 0.5;
     if (agent.frameTimer >= frameRate) {
       agent.frameTimer = 0;
       agent.frame++;
     }
 
-    // Speech timer
     if (agent.speech) {
       agent.speechTimer -= dt;
       if (agent.speechTimer <= 0) {
@@ -352,33 +370,26 @@ class OfficeScene {
       }
     }
 
-    // State timer
     agent.stateTimer -= dt;
 
     switch (agent.state) {
       case 'type':
         if (agent.stateTimer <= 0) {
-          // Randomly speak while typing
           if (Math.random() < 0.3) {
             agent.speech = PixelSprites.speeches[Math.floor(Math.random() * PixelSprites.speeches.length)];
             agent.speechTimer = 3;
           }
-
-          // Decide: keep typing, go walk, or go idle
           const r = Math.random();
           if (r < 0.4) {
-            // Go for a walk
             agent.state = 'walk';
             const target = this.randomWalkTarget(agent);
             agent.path = this.findPath(agent.col, agent.row, target.col, target.row);
             agent.pathIdx = 0;
             agent.stateTimer = 20;
           } else if (r < 0.6) {
-            // Go idle for a moment
             agent.state = 'idle';
             agent.stateTimer = Math.random() * 3 + 1;
           } else {
-            // Keep typing
             agent.stateTimer = Math.random() * 8 + 4;
           }
         }
@@ -389,9 +400,7 @@ class OfficeScene {
           const target = agent.path[agent.pathIdx];
           const tx = target.col * this.T + this.T / 2;
           const ty = target.row * this.T + this.T / 2;
-
-          // Move toward target
-          const speed = 50; // pixels per second
+          const speed = 50;
           const dx = tx - agent.x;
           const dy = ty - agent.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
@@ -405,7 +414,6 @@ class OfficeScene {
           } else {
             agent.x += (dx / dist) * speed * dt;
             agent.y += (dy / dist) * speed * dt;
-            // Update direction
             if (Math.abs(dx) > Math.abs(dy)) {
               agent.dir = dx > 0 ? 'right' : 'left';
             } else {
@@ -413,7 +421,6 @@ class OfficeScene {
             }
           }
         } else {
-          // Path complete or no path — return to seat or go idle
           if (agent.seatIdx !== undefined) {
             const seat = this.seats[agent.seatIdx];
             if (agent.col === seat.col && agent.row === seat.row) {
@@ -421,7 +428,6 @@ class OfficeScene {
               agent.dir = 'down';
               agent.stateTimer = Math.random() * 10 + 5;
             } else {
-              // Path back to seat
               agent.path = this.findPath(agent.col, agent.row, seat.col, seat.row);
               agent.pathIdx = 0;
               if (agent.path.length === 0) {
@@ -438,7 +444,6 @@ class OfficeScene {
 
       case 'idle':
         if (agent.stateTimer <= 0) {
-          // Go back to seat to type
           const seat = this.seats[agent.seatIdx];
           agent.path = this.findPath(agent.col, agent.row, seat.col, seat.row);
           agent.pathIdx = 0;
@@ -446,7 +451,6 @@ class OfficeScene {
           agent.stateTimer = agent.state === 'walk' ? 20 : (Math.random() * 8 + 4);
           agent.dir = 'down';
 
-          // Maybe say something
           if (Math.random() < 0.5) {
             agent.speech = PixelSprites.speeches[Math.floor(Math.random() * PixelSprites.speeches.length)];
             agent.speechTimer = 3.5;
@@ -457,7 +461,6 @@ class OfficeScene {
   }
 
   randomWalkTarget(agent) {
-    // Pick a random walkable tile
     const candidates = [];
     for (let r = 2; r < this.rows - 1; r++) {
       for (let c = 1; c < this.cols - 1; c++) {
@@ -470,7 +473,6 @@ class OfficeScene {
     return candidates[Math.floor(Math.random() * candidates.length)];
   }
 
-  // Resize canvas to fit window
   resize() {
     const dpr = window.devicePixelRatio || 1;
     const W = window.innerWidth;
@@ -481,11 +483,9 @@ class OfficeScene {
     this.canvas.style.width = W + 'px';
     this.canvas.style.height = H + 'px';
 
-    // Dynamic status bar height instead of hardcoded 40px
     const statusBar = document.querySelector('.status-bar');
     const barH = statusBar ? statusBar.offsetHeight : 40;
 
-    // Calculate scale to fit office in viewport
     const officeW = this.cols * this.T;
     const officeH = this.rows * this.T;
     const viewH = H - barH;
@@ -495,7 +495,6 @@ class OfficeScene {
     this.offsetY = barH * dpr + (viewH * dpr - officeH * this.scale) / 2;
   }
 
-  // Mouse move for hover detection
   onMouseMove(e) {
     const dpr = window.devicePixelRatio || 1;
     const canvasX = (e.clientX * dpr - this.offsetX) / this.scale;
@@ -515,7 +514,6 @@ class OfficeScene {
       }
     }
 
-    // Update agent panel
     const panel = document.getElementById('agent-panel');
     if (this.hoveredAgent) {
       const a = this.hoveredAgent;
@@ -525,19 +523,18 @@ class OfficeScene {
       document.getElementById('panel-name').textContent = '\u26A1 ' + a.name;
       document.getElementById('panel-role').textContent = I18n.agentRole(a.id);
       const statusText = I18n.t('status.' + a.realStatus);
-      const taskSuffix = a.currentTask ? ' — ' + a.currentTask : '';
+      const taskSuffix = a.currentTask ? ' \u2014 ' + a.currentTask : '';
       document.getElementById('panel-status').textContent = statusText + taskSuffix;
     } else {
       panel.style.display = 'none';
     }
   }
 
-  // Tap handler (click + touch)
   onTap(clientX, clientY) {
     const dpr = window.devicePixelRatio || 1;
     const canvasX = (clientX * dpr - this.offsetX) / this.scale;
     const canvasY = (clientY * dpr - this.offsetY) / this.scale;
-    const hitPad = 8; // extra pixels for touch targets
+    const hitPad = 8;
 
     let tapped = null;
     for (const agent of this.agents) {
@@ -560,16 +557,14 @@ class OfficeScene {
     }
   }
 
-  // Show speech bubble on agent (called from chat)
   showAgentSpeech(agentId, text) {
     const agent = this.agents.find(a => a.id === agentId);
     if (agent) {
-      agent.speech = text.length > 20 ? text.slice(0, 20) + '…' : text;
+      agent.speech = text.length > 20 ? text.slice(0, 20) + '\u2026' : text;
       agent.speechTimer = 4;
     }
   }
 
-  // Main update
   update(dt) {
     this.frame++;
     for (const agent of this.agents) {
@@ -577,25 +572,21 @@ class OfficeScene {
     }
   }
 
-  // Main render
   render() {
     const { ctx, T, scale, offsetX, offsetY } = this;
+    const p = ThemePalette.current;
     const W = this.canvas.width;
     const H = this.canvas.height;
 
-    // Clear
-    ctx.fillStyle = '#0d1117';
+    ctx.fillStyle = p.canvasBg;
     ctx.fillRect(0, 0, W, H);
 
-    // Apply transform
     ctx.save();
     ctx.translate(offsetX, offsetY);
     ctx.scale(scale, scale);
-
-    // Disable smoothing for pixel art
     ctx.imageSmoothingEnabled = false;
 
-    // 1. Draw tiles (floor)
+    // 1. Draw tiles
     for (let r = 0; r < this.rows; r++) {
       for (let c = 0; c < this.cols; c++) {
         const x = c * T;
@@ -605,27 +596,25 @@ class OfficeScene {
           case 1: PixelSprites.drawWallTile(ctx, x, y); break;
           case 2: PixelSprites.drawKitchenFloor(ctx, x, y); break;
           case 3: PixelSprites.drawCarpetTile(ctx, x, y); break;
+          case 4: PixelSprites.drawLobbyFloor(ctx, x, y); break;
+          case 5: PixelSprites.drawFactoryFloor(ctx, x, y); break;
+          case 6: PixelSprites.drawCorridorFloor(ctx, x, y); break;
+          case 7: PixelSprites.drawGlassWall(ctx, x, y); break;
         }
       }
     }
 
-    // 2. Collect all renderables for z-sorting
+    // 2. Collect renderables for z-sorting
     const renderables = [];
-
-    // Add furniture
-    for (const f of this.furniture) {
-      renderables.push({ type: 'furniture', data: f, zY: f.zY });
+    for (const furn of this.furniture) {
+      renderables.push({ type: 'furniture', data: furn, zY: furn.zY });
     }
-
-    // Add agents
     for (const agent of this.agents) {
       renderables.push({ type: 'agent', data: agent, zY: agent.y });
     }
-
-    // Z-sort
     renderables.sort((a, b) => a.zY - b.zY);
 
-    // 3. Render all sorted items
+    // 3. Render sorted items
     for (const item of renderables) {
       if (item.type === 'furniture') {
         this.renderFurniture(item.data);
@@ -634,30 +623,27 @@ class OfficeScene {
       }
     }
 
-    // 4. Render speech bubbles (always on top)
+    // 4. Speech bubbles (always on top)
     for (const agent of this.agents) {
       if (agent.speech) {
-        const sx = agent.x;
-        const sy = agent.y - CHAR_H - 4;
-        PixelSprites.drawBubble(ctx, sx, sy, agent.speech);
+        PixelSprites.drawBubble(ctx, agent.x, agent.y - CHAR_H - 4, agent.speech);
       }
     }
 
-    // 5. Render selected agent breathing glow
+    // 5. Selected agent glow
     if (this.selectedAgent) {
       const a = this.selectedAgent;
       const glow = 0.3 + 0.3 * Math.sin(Date.now() / 400);
-      ctx.strokeStyle = `rgba(88, 166, 255, ${glow})`;
+      ctx.strokeStyle = p.selectGlow + glow + ')';
       ctx.lineWidth = 2;
       ctx.strokeRect(a.x - CHAR_W / 2 - 3, a.y - CHAR_H - 3, CHAR_W + 6, CHAR_H + 8);
     }
 
-    // 6. Render hovered agent highlight
+    // 6. Hovered agent highlight
     if (this.hoveredAgent && this.hoveredAgent !== this.selectedAgent) {
-      const a = this.hoveredAgent;
-      ctx.strokeStyle = 'rgba(88, 166, 255, 0.6)';
+      ctx.strokeStyle = p.hoverGlow;
       ctx.lineWidth = 1;
-      ctx.strokeRect(a.x - CHAR_W / 2 - 2, a.y - CHAR_H - 2, CHAR_W + 4, CHAR_H + 6);
+      ctx.strokeRect(this.hoveredAgent.x - CHAR_W / 2 - 2, this.hoveredAgent.y - CHAR_H - 2, CHAR_W + 4, CHAR_H + 6);
     }
 
     ctx.restore();
@@ -679,52 +665,51 @@ class OfficeScene {
       case 'waterCooler': PixelSprites.drawWaterCooler(ctx, f.x, f.y); break;
       case 'whiteboard': PixelSprites.drawWhiteboard(ctx, f.x, f.y, f.w); break;
       case 'meetingTable': this.drawMeetingTable(ctx, f.x, f.y); break;
+      case 'receptionDesk': PixelSprites.drawReceptionDesk(ctx, f.x, f.y); break;
+      case 'securityDesk': PixelSprites.drawSecurityDesk(ctx, f.x, f.y); break;
+      case 'sofa': PixelSprites.drawSofa(ctx, f.x, f.y); break;
+      case 'monitorWall': PixelSprites.drawMonitorWall(ctx, f.x, f.y, f.w); break;
+      case 'conveyor': PixelSprites.drawConveyorBelt(ctx, f.x, f.y); break;
+      case 'safetySign': PixelSprites.drawSafetySign(ctx, f.x, f.y); break;
     }
   }
 
   drawMeetingTable(ctx, x, y) {
-    // Large meeting table spanning 2x2 tiles
-    ctx.fillStyle = '#8B6914';
+    const p = ThemePalette.current;
+    ctx.fillStyle = p.mtSurface;
     ctx.fillRect(x, y + 4, TILE * 2, TILE - 4);
-    ctx.fillStyle = '#a07818';
+    ctx.fillStyle = p.mtTop;
     ctx.fillRect(x, y + 4, TILE * 2, 3);
-    // Legs
-    ctx.fillStyle = '#6b5210';
+    ctx.fillStyle = p.mtLeg;
     ctx.fillRect(x + 4, y + TILE, 3, 6);
     ctx.fillRect(x + TILE * 2 - 7, y + TILE, 3, 6);
-    // Papers on table
-    ctx.fillStyle = '#ecf0f1';
+    ctx.fillStyle = p.mtPaper;
     ctx.fillRect(x + 10, y + 10, 12, 8);
     ctx.fillRect(x + TILE + 8, y + 12, 10, 6);
   }
 
   renderAgent(agent) {
+    const p = ThemePalette.current;
     const spriteCanvas = PixelSprites.drawCharacter(
       agent.palette, agent.dir, agent.frame, agent.state
     );
-
-    // Draw scaled sprite
     const dx = agent.x - CHAR_W / 2;
     const dy = agent.y - CHAR_H;
     this.ctx.drawImage(spriteCanvas, dx, dy, CHAR_W, CHAR_H);
 
-    // Name label below agent (from i18n)
     this.ctx.font = '5px sans-serif';
-    this.ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    this.ctx.fillStyle = p.agentLabel;
     this.ctx.textAlign = 'center';
     this.ctx.fillText(I18n.agentName(agent.id), agent.x, agent.y + 6);
     this.ctx.textAlign = 'left';
   }
 
-  // Game loop
   start() {
     const loop = (timestamp) => {
       const dt = Math.min((timestamp - this.lastTime) / 1000, 0.1);
       this.lastTime = timestamp;
-
       this.update(dt);
       this.render();
-
       requestAnimationFrame(loop);
     };
     this.lastTime = performance.now();

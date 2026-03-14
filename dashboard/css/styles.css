@@ -1,16 +1,95 @@
-/* Nexus Office Dashboard — Pixel Art Theme */
+/* Nexus Office Dashboard — Enterprise Design System
+   Dual theme (light default / dark toggle)
+   Zero hardcoded colors — all via CSS custom properties */
 
+/* ═══════════════════════════════════════════════
+   Design Tokens (Light Theme — Default)
+   ═══════════════════════════════════════════════ */
 :root {
+  --bg: #f5f5f0;
+  --bar-bg: rgba(255, 255, 255, 0.95);
+  --bar-border: rgba(0, 0, 0, 0.08);
+  --text: #1f1f1f;
+  --text-dim: #6b7280;
+  --green: #16a34a;
+  --yellow: #ca8a04;
+  --red: #dc2626;
+  --accent: #1a73e8;
+  --surface: #ffffff;
+  --surface-hover: rgba(0, 0, 0, 0.04);
+  --input-bg: #f1f3f4;
+  --input-border: rgba(0, 0, 0, 0.12);
+  --input-focus: #1a73e8;
+  --overlay: rgba(0, 0, 0, 0.3);
+  --chat-bg: #ffffff;
+  --chat-border: rgba(0, 0, 0, 0.06);
+  --chat-agent-bg: rgba(0, 0, 0, 0.05);
+  --chat-agent-text: #1f1f1f;
+  --modal-bg: #ffffff;
+  --modal-border: rgba(0, 0, 0, 0.1);
+  --pill-bg: rgba(0, 0, 0, 0.05);
+  --pill-border: rgba(0, 0, 0, 0.08);
+  --pill-ok-bg: rgba(22, 163, 74, 0.08);
+  --pill-ok-border: rgba(22, 163, 74, 0.3);
+  --pill-warn-bg: rgba(202, 138, 4, 0.08);
+  --pill-warn-border: rgba(202, 138, 4, 0.3);
+  --pill-err-bg: rgba(220, 38, 38, 0.08);
+  --pill-err-border: rgba(220, 38, 38, 0.3);
+  --toast-info-bg: rgba(26, 115, 232, 0.12);
+  --toast-info-border: rgba(26, 115, 232, 0.3);
+  --toast-ok-bg: rgba(22, 163, 74, 0.12);
+  --toast-ok-border: rgba(22, 163, 74, 0.3);
+  --toast-warn-bg: rgba(202, 138, 4, 0.12);
+  --toast-warn-border: rgba(202, 138, 4, 0.3);
+  --toast-err-bg: rgba(220, 38, 38, 0.12);
+  --toast-err-border: rgba(220, 38, 38, 0.3);
+  --font-mono: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  --font-sans: 'PingFang TC', 'Noto Sans TC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* ═══════════════════════════════════════════════
+   Dark Theme Override
+   ═══════════════════════════════════════════════ */
+:root[data-theme="dark"] {
   --bg: #1a1a2e;
   --bar-bg: rgba(13, 17, 23, 0.92);
+  --bar-border: rgba(255, 255, 255, 0.06);
   --text: #e6edf3;
   --text-dim: #8b949e;
   --green: #3fb950;
   --yellow: #d29922;
   --red: #f85149;
   --accent: #58a6ff;
-  --font-mono: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
-  --font-sans: 'PingFang TC', 'Noto Sans TC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --surface: #0d1117;
+  --surface-hover: rgba(255, 255, 255, 0.06);
+  --input-bg: rgba(255, 255, 255, 0.06);
+  --input-border: rgba(255, 255, 255, 0.1);
+  --input-focus: #58a6ff;
+  --overlay: rgba(0, 0, 0, 0.4);
+  --chat-bg: #0d1117;
+  --chat-border: rgba(255, 255, 255, 0.08);
+  --chat-agent-bg: rgba(255, 255, 255, 0.08);
+  --chat-agent-text: #e6edf3;
+  --modal-bg: #161b22;
+  --modal-border: rgba(255, 255, 255, 0.1);
+  --pill-bg: rgba(255, 255, 255, 0.06);
+  --pill-border: rgba(255, 255, 255, 0.08);
+  --pill-ok-bg: rgba(63, 185, 80, 0.08);
+  --pill-ok-border: rgba(63, 185, 80, 0.3);
+  --pill-warn-bg: rgba(210, 153, 34, 0.08);
+  --pill-warn-border: rgba(210, 153, 34, 0.3);
+  --pill-err-bg: rgba(248, 81, 73, 0.08);
+  --pill-err-border: rgba(248, 81, 73, 0.3);
+  --toast-info-bg: rgba(88, 166, 255, 0.15);
+  --toast-info-border: rgba(88, 166, 255, 0.3);
+  --toast-ok-bg: rgba(63, 185, 80, 0.15);
+  --toast-ok-border: rgba(63, 185, 80, 0.3);
+  --toast-warn-bg: rgba(210, 153, 34, 0.15);
+  --toast-warn-border: rgba(210, 153, 34, 0.3);
+  --toast-err-bg: rgba(248, 81, 73, 0.15);
+  --toast-err-border: rgba(248, 81, 73, 0.3);
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -20,14 +99,15 @@ body {
   overflow: hidden;
   cursor: default;
   font-family: var(--font-sans);
+  color: var(--text);
 }
 
-/* Status Bar */
+/* ═══════════════════════════════════════════════
+   Status Bar
+   ═══════════════════════════════════════════════ */
 .status-bar {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
+  top: 0; left: 0; right: 0;
   height: 40px;
   background: var(--bar-bg);
   backdrop-filter: blur(8px);
@@ -36,7 +116,7 @@ body {
   align-items: center;
   padding: 0 16px;
   z-index: 100;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
+  border-bottom: 1px solid var(--bar-border);
   font-size: 13px;
   color: var(--text);
 }
@@ -58,26 +138,26 @@ body {
   font-size: 11px;
   padding: 3px 10px;
   border-radius: 10px;
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.08);
+  background: var(--pill-bg);
+  border: 1px solid var(--pill-border);
 }
 
 .status-pill.ok {
   color: var(--green);
-  border-color: rgba(63, 185, 80, 0.3);
-  background: rgba(63, 185, 80, 0.08);
+  border-color: var(--pill-ok-border);
+  background: var(--pill-ok-bg);
 }
 
 .status-pill.warn {
   color: var(--yellow);
-  border-color: rgba(210, 153, 34, 0.3);
-  background: rgba(210, 153, 34, 0.08);
+  border-color: var(--pill-warn-border);
+  background: var(--pill-warn-bg);
 }
 
 .status-pill.err {
   color: var(--red);
-  border-color: rgba(248, 81, 73, 0.3);
-  background: rgba(248, 81, 73, 0.08);
+  border-color: var(--pill-err-border);
+  background: var(--pill-err-bg);
 }
 
 #agent-count {
@@ -92,27 +172,72 @@ body {
   color: var(--text-dim);
 }
 
-/* Canvas — JS controls size via resize(); no vw/vh conflict */
+/* Theme toggle button */
+.theme-btn {
+  background: none;
+  border: 1px solid var(--input-border);
+  border-radius: 6px;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 2px 8px;
+  transition: color 0.2s, border-color 0.2s;
+  line-height: 1;
+}
+.theme-btn:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+.theme-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Settings gear button */
+.settings-btn {
+  background: none;
+  border: 1px solid var(--input-border);
+  border-radius: 6px;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 2px 8px;
+  transition: color 0.2s, border-color 0.2s;
+}
+.settings-btn:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+.settings-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ═══════════════════════════════════════════════
+   Canvas
+   ═══════════════════════════════════════════════ */
 #office {
   position: fixed;
-  top: 0;
-  left: 0;
+  top: 0; left: 0;
   display: block;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
 }
 
-/* Agent Info Panel */
+/* ═══════════════════════════════════════════════
+   Agent Info Panel
+   ═══════════════════════════════════════════════ */
 .agent-panel {
   position: fixed;
   background: var(--bar-bg);
   backdrop-filter: blur(8px);
-  border: 1px solid rgba(255,255,255,0.1);
+  border: 1px solid var(--modal-border);
   border-radius: 8px;
   padding: 10px 14px;
   z-index: 200;
   pointer-events: none;
   min-width: 140px;
+  box-shadow: var(--shadow);
 }
 
 .agent-panel-name {
@@ -134,28 +259,12 @@ body {
   color: var(--green);
 }
 
-/* Settings gear button */
-.settings-btn {
-  background: none;
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 6px;
-  color: var(--text-dim);
-  cursor: pointer;
-  font-size: 16px;
-  padding: 2px 8px;
-  transition: color 0.2s, border-color 0.2s;
-}
-.settings-btn:hover {
-  color: var(--text);
-  border-color: rgba(255,255,255,0.2);
-}
-
 /* ═══════════════════════════════════════════════
-   Chat Panel — 桌面右側 360px / 手機底部 70vh sheet
+   Chat Panel
    ═══════════════════════════════════════════════ */
 .chat-overlay {
   position: fixed; inset: 0;
-  background: rgba(0,0,0,0.4);
+  background: var(--overlay);
   z-index: 290;
   opacity: 0;
   pointer-events: none;
@@ -170,8 +279,8 @@ body {
   position: fixed;
   top: 0; right: 0; bottom: 0;
   width: 360px;
-  background: #0d1117;
-  border-left: 1px solid rgba(255,255,255,0.08);
+  background: var(--chat-bg);
+  border-left: 1px solid var(--chat-border);
   z-index: 300;
   display: flex;
   flex-direction: column;
@@ -182,16 +291,14 @@ body {
   transform: translateX(0);
 }
 
-.chat-handle {
-  display: none;
-}
+.chat-handle { display: none; }
 
 .chat-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 12px 16px;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
+  border-bottom: 1px solid var(--chat-border);
   flex-shrink: 0;
 }
 
@@ -212,16 +319,20 @@ body {
   transition: background 0.2s;
 }
 .chat-close-btn:hover {
-  background: rgba(255,255,255,0.08);
+  background: var(--surface-hover);
   color: var(--text);
+}
+.chat-close-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .chat-offline {
   padding: 8px 16px;
   font-size: 12px;
   color: var(--yellow);
-  background: rgba(210, 153, 34, 0.08);
-  border-bottom: 1px solid rgba(210, 153, 34, 0.15);
+  background: var(--pill-warn-bg);
+  border-bottom: 1px solid var(--pill-warn-border);
   display: none;
 }
 
@@ -234,9 +345,7 @@ body {
   gap: 8px;
 }
 
-.chat-msg {
-  display: flex;
-}
+.chat-msg { display: flex; }
 .chat-msg-user { justify-content: flex-end; }
 .chat-msg-agent { justify-content: flex-start; }
 .chat-msg-system { justify-content: center; }
@@ -257,13 +366,13 @@ body {
 }
 
 .chat-msg-agent .chat-bubble {
-  background: rgba(255,255,255,0.08);
-  color: var(--text);
+  background: var(--chat-agent-bg);
+  color: var(--chat-agent-text);
   border-bottom-left-radius: 4px;
 }
 
 .chat-msg-system .chat-bubble {
-  background: rgba(255,255,255,0.04);
+  background: var(--surface-hover);
   color: var(--text-dim);
   font-size: 11px;
 }
@@ -281,14 +390,14 @@ body {
   gap: 8px;
   padding: 12px 16px;
   padding-bottom: calc(12px + env(safe-area-inset-bottom, 0));
-  border-top: 1px solid rgba(255,255,255,0.06);
+  border-top: 1px solid var(--chat-border);
   flex-shrink: 0;
 }
 
 .chat-input {
   flex: 1;
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.1);
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
   border-radius: 8px;
   padding: 8px 12px;
   color: var(--text);
@@ -297,7 +406,7 @@ body {
   font-family: inherit;
 }
 .chat-input:focus {
-  border-color: var(--accent);
+  border-color: var(--input-focus);
 }
 .chat-input:disabled {
   opacity: 0.4;
@@ -317,14 +426,17 @@ body {
 }
 .chat-send-btn:hover { opacity: 0.85; }
 .chat-send-btn:disabled { opacity: 0.4; cursor: default; }
+.chat-send-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 
 /* ═══════════════════════════════════════════════
    Toast Notifications
    ═══════════════════════════════════════════════ */
 .toast-container {
   position: fixed;
-  top: 52px;
-  right: 16px;
+  top: 52px; right: 16px;
   z-index: 400;
   display: flex;
   flex-direction: column;
@@ -346,26 +458,20 @@ body {
   max-width: 320px;
   word-break: break-word;
 }
-.toast.show {
-  transform: translateX(0);
-  opacity: 1;
-}
-.toast.hide {
-  transform: translateX(120%);
-  opacity: 0;
-}
+.toast.show { transform: translateX(0); opacity: 1; }
+.toast.hide { transform: translateX(120%); opacity: 0; }
 
-.toast-info     { background: rgba(88, 166, 255, 0.15); border: 1px solid rgba(88, 166, 255, 0.3); }
-.toast-success  { background: rgba(63, 185, 80, 0.15);  border: 1px solid rgba(63, 185, 80, 0.3); }
-.toast-warning  { background: rgba(210, 153, 34, 0.15); border: 1px solid rgba(210, 153, 34, 0.3); }
-.toast-error    { background: rgba(248, 81, 73, 0.15);  border: 1px solid rgba(248, 81, 73, 0.3); }
+.toast-info    { background: var(--toast-info-bg); border: 1px solid var(--toast-info-border); }
+.toast-success { background: var(--toast-ok-bg);   border: 1px solid var(--toast-ok-border); }
+.toast-warning { background: var(--toast-warn-bg); border: 1px solid var(--toast-warn-border); }
+.toast-error   { background: var(--toast-err-bg);  border: 1px solid var(--toast-err-border); }
 
 /* ═══════════════════════════════════════════════
    Settings Modal
    ═══════════════════════════════════════════════ */
 .settings-overlay {
   position: fixed; inset: 0;
-  background: rgba(0,0,0,0.5);
+  background: var(--overlay);
   z-index: 490;
   opacity: 0;
   pointer-events: none;
@@ -380,16 +486,19 @@ body {
   position: fixed;
   top: 50%; left: 50%;
   transform: translate(-50%, -50%) scale(0.95);
-  background: #161b22;
-  border: 1px solid rgba(255,255,255,0.1);
+  background: var(--modal-bg);
+  border: 1px solid var(--modal-border);
   border-radius: 12px;
   padding: 24px;
   z-index: 500;
   width: 360px;
   max-width: 90vw;
+  max-height: 85vh;
+  overflow-y: auto;
   opacity: 0;
   pointer-events: none;
   transition: transform 0.3s ease, opacity 0.3s ease;
+  box-shadow: var(--shadow);
 }
 .settings-modal.open {
   transform: translate(-50%, -50%) scale(1);
@@ -415,8 +524,8 @@ body {
 }
 .settings-input {
   width: 100%;
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.1);
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
   border-radius: 6px;
   padding: 8px 10px;
   color: var(--text);
@@ -425,7 +534,7 @@ body {
   outline: none;
 }
 .settings-input:focus {
-  border-color: var(--accent);
+  border-color: var(--input-focus);
 }
 
 .settings-status {
@@ -446,7 +555,7 @@ body {
 .settings-btn-test,
 .settings-btn-cancel,
 .settings-btn-save {
-  border: 1px solid rgba(255,255,255,0.1);
+  border: 1px solid var(--input-border);
   border-radius: 6px;
   padding: 6px 14px;
   font-size: 13px;
@@ -454,17 +563,23 @@ body {
   font-family: inherit;
   transition: background 0.2s;
 }
+.settings-btn-test:focus-visible,
+.settings-btn-cancel:focus-visible,
+.settings-btn-save:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 .settings-btn-test {
   background: none;
   color: var(--accent);
-  border-color: rgba(88,166,255,0.3);
+  border-color: var(--toast-info-border);
 }
-.settings-btn-test:hover { background: rgba(88,166,255,0.08); }
+.settings-btn-test:hover { background: var(--toast-info-bg); }
 .settings-btn-cancel {
   background: none;
   color: var(--text-dim);
 }
-.settings-btn-cancel:hover { background: rgba(255,255,255,0.06); }
+.settings-btn-cancel:hover { background: var(--surface-hover); }
 .settings-btn-save {
   background: var(--accent);
   color: #fff;
@@ -476,7 +591,7 @@ body {
 .settings-select {
   appearance: none;
   -webkit-appearance: none;
-  background: rgba(255,255,255,0.06) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%238b949e'/%3E%3C/svg%3E") no-repeat right 10px center;
+  background: var(--input-bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%238b949e'/%3E%3C/svg%3E") no-repeat right 10px center;
   background-size: 10px 6px;
   padding-right: 28px;
   cursor: pointer;
@@ -502,6 +617,10 @@ body {
   transition: opacity 0.2s;
 }
 .chat-tg-link:hover { opacity: 0.85; }
+.chat-tg-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 
 /* ═══════════════════════════════════════════════
    Mobile Responsive
@@ -522,13 +641,13 @@ body {
   .logo { font-size: 12px; }
   #clock { display: none; }
 
-  /* Chat panel → bottom sheet */
+  /* Chat panel -> bottom sheet */
   .chat-panel {
     top: auto; right: 0; bottom: 0; left: 0;
     width: 100%;
     height: 70vh;
     border-left: none;
-    border-top: 1px solid rgba(255,255,255,0.08);
+    border-top: 1px solid var(--chat-border);
     border-radius: 16px 16px 0 0;
     transform: translateY(100%);
   }
@@ -544,7 +663,7 @@ body {
   .chat-handle span {
     width: 36px;
     height: 4px;
-    background: rgba(255,255,255,0.2);
+    background: var(--input-border);
     border-radius: 2px;
     display: block;
   }
@@ -557,4 +676,19 @@ body {
     left: 8px;
   }
   .toast { max-width: 100%; }
+}
+
+/* ═══════════════════════════════════════════════
+   Accessibility: Reduced Motion
+   ═══════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  .chat-panel,
+  .chat-overlay,
+  .settings-overlay,
+  .settings-modal,
+  .toast,
+  .theme-btn,
+  .settings-btn {
+    transition: none;
+  }
 }
