@@ -56,7 +56,7 @@ if $JSON_OUTPUT; then
 EOF
 else
   # Human-readable output
-  echo "⚡ Nexus Health Check — $(date)"
+  echo "⚡ HD Smarter 天使 Health Check — $(date)"
   echo "────────────────────────────────"
 
   if [[ "$GATEWAY_STATUS" == "running" ]]; then

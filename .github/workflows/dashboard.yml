@@ -27,7 +27,7 @@ jobs:
           jq -n \
             --arg ts "$TIMESTAMP" \
             --arg host "github-actions" \
-            --arg ver "OpenClaw 2026.3.13" \
+            --arg ver "AIAgent 2026.3.13" \
             '{
               timestamp: $ts,
               hostname: $host,

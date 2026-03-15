@@ -30,7 +30,7 @@
 ## 心跳報告格式
 
 ```
-⚡ Nexus Heartbeat — [timestamp]
+⚡ HD Smarter 天使 Heartbeat — [timestamp]
 ├─ Gateway: ✅ running (uptime: Xh)
 ├─ Telegram: ✅ connected
 ├─ LINE: ✅ connected

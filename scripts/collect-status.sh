@@ -1,5 +1,5 @@
 #!/bin/bash
-# Collect OpenClaw agent status and push to GitHub Pages
+# Collect AIAgent status and push to GitHub Pages
 # Runs periodically via cron or GitHub Actions
 
 set -euo pipefail

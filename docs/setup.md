@@ -11,8 +11,8 @@
 
 ```bash
 # Clone the repository
-git clone https://github.com/hdsmarter/OpenClaw.git
-cd OpenClaw
+git clone https://github.com/hdsmarter/AIAgent.git
+cd AIAgent
 
 # Run setup
 ./scripts/setup.sh

@@ -1,10 +1,10 @@
-# ⚡ Nexus — OpenClaw Enterprise Enabler Agent
+# ⚡ HD Smarter 天使 — OpenClaw Enterprise Enabler Agent
 
 [English](#overview) | [中文](#概述)
 
 ## Overview
 
-Nexus is an AI Agent built on [OpenClaw](https://openclaw.ai), designed as an **Enterprise Enabler** — helping businesses streamline operations through cross-department analysis, automation, and data-driven decision making.
+HD Smarter 天使 is an AI Agent built on [OpenClaw](https://openclaw.ai), designed as an **Enterprise Enabler** — helping businesses streamline operations through cross-department analysis, automation, and data-driven decision making.
 
 **Features:**
 - Multi-channel support (Telegram + LINE)
@@ -12,13 +12,13 @@ Nexus is an AI Agent built on [OpenClaw](https://openclaw.ai), designed as an **
 - Real-time monitoring dashboard
 - Workspace persona system for consistent AI behavior
 
-**Dashboard:** [hdsmarter.github.io/OpenClaw](https://hdsmarter.github.io/OpenClaw/)
+**Dashboard:** [hdsmarter.github.io/AIAgent](https://hdsmarter.github.io/AIAgent/)
 
 ---
 
 ## 概述
 
-Nexus 是基於 [OpenClaw](https://openclaw.ai) 打造的 AI Agent，定位為**企業賦能者**——協助企業透過跨部門分析、自動化和數據驅動決策來提升營運效率。
+HD Smarter 天使是基於 [OpenClaw](https://openclaw.ai) 打造的 AI Agent，定位為**企業賦能者**——協助企業透過跨部門分析、自動化和數據驅動決策來提升營運效率。
 
 **功能特色：**
 - 多頻道支援（Telegram + LINE）

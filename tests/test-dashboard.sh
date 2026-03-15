@@ -370,7 +370,7 @@ if grep -q 'aria-label' "$DASH/index.html"; then pass; else fail "missing"; fi
 
 describe "Claude Skills"
 
-SKILL_SLUGS="nexus-data-analyst nexus-marketing nexus-finance nexus-hr nexus-supply-chain nexus-it-architect nexus-project-mgr nexus-customer-svc nexus-legal nexus-product-mgr nexus-ux-designer nexus-content nexus-bd nexus-quality nexus-security nexus-hr-director"
+SKILL_SLUGS="hdsmarter-data-analyst hdsmarter-marketing hdsmarter-finance hdsmarter-hr hdsmarter-supply-chain hdsmarter-it-architect hdsmarter-project-mgr hdsmarter-customer-svc hdsmarter-legal hdsmarter-product-mgr hdsmarter-ux-designer hdsmarter-content hdsmarter-bd hdsmarter-quality hdsmarter-security hdsmarter-hr-director"
 
 it "should have 16 skill directories"
 SKILL_COUNT=0
