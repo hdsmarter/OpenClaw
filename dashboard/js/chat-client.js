@@ -475,7 +475,9 @@ class ChatClient extends EventTarget {
 
   /**
    * Upload file to CORS proxy /upload, then send message with file path.
-   * The OpenClaw agent can read local files and run scripts on them.
+   * OpenClaw v2026.3.13 does NOT support inline base64 input_image/input_file
+   * in /v1/responses (returns 400 Invalid input). This upload-then-reference
+   * approach lets the agent use native tools (pdfplumber, openpyxl) on the file.
    */
   _uploadThenSendResponses(agentId, text, fileAttachment) {
     this.dispatchEvent(new CustomEvent('message', {
