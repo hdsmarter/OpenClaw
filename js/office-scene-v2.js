@@ -20,7 +20,7 @@ class OfficeSceneV2 {
     this._viewH = this._rows * this._tileSize;  // 576
 
     // State
-    this.agents = [];
+    this._agents = [];
     this._agentEls = {};
     this._onAgentClick = null;
     this._selectedAgent = null;
