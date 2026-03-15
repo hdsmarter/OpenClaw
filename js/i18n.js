@@ -11,6 +11,14 @@ const I18n = {
   langs: ['zh-TW', 'zh-CN', 'en'],
 
   strings: {
+    // ── Auth Gate ──────────────────────────────
+    'auth.title':     { 'zh-TW': '\u8ACB\u5148\u767B\u5165',         'zh-CN': '\u8BF7\u5148\u767B\u5F55',         en: 'Login Required' },
+    'auth.userLabel': { 'zh-TW': '\u5E33\u865F',             'zh-CN': '\u8D26\u53F7',             en: 'Username' },
+    'auth.passLabel': { 'zh-TW': '\u5BC6\u78BC',             'zh-CN': '\u5BC6\u7801',             en: 'Password' },
+    'auth.loginBtn':  { 'zh-TW': '\u767B\u5165',             'zh-CN': '\u767B\u5F55',             en: 'Login' },
+    'auth.error':     { 'zh-TW': '\u5E33\u865F\u6216\u5BC6\u78BC\u932F\u8AA4', 'zh-CN': '\u8D26\u53F7\u6216\u5BC6\u7801\u9519\u8BEF', en: 'Invalid credentials' },
+    'auth.logoutBtn': { 'zh-TW': '\u767B\u51FA',             'zh-CN': '\u9000\u51FA',             en: 'Logout' },
+
     // ── Chat Panel ──────────────────────────────
     'chat.title':        { 'zh-TW': '\u5C0D\u8A71',           'zh-CN': '\u5BF9\u8BDD',            en: 'Chat' },
     'chat.placeholder':  { 'zh-TW': '\u8F38\u5165\u8A0A\u606F...',    'zh-CN': '\u8F93\u5165\u6D88\u606F...',     en: 'Type a message...' },
@@ -30,6 +38,11 @@ const I18n = {
     'settings.chatModeTg':     { 'zh-TW': 'Telegram Bot',   'zh-CN': 'Telegram Bot',   en: 'Telegram Bot' },
     'settings.chatModeGw':     { 'zh-TW': 'Gateway WebSocket', 'zh-CN': 'Gateway WebSocket', en: 'Gateway WebSocket' },
     'settings.chatModeOr':     { 'zh-TW': 'OpenRouter API', 'zh-CN': 'OpenRouter API', en: 'OpenRouter API' },
+    'settings.chatModeGwApi':  { 'zh-TW': 'Gateway API (Gemini)', 'zh-CN': 'Gateway API (Gemini)', en: 'Gateway API (Gemini)' },
+    'settings.gwApiUrlLabel':  { 'zh-TW': 'Gateway URL',  'zh-CN': 'Gateway URL',  en: 'Gateway URL' },
+    'settings.gwApiUrlPlaceholder': { 'zh-TW': 'https://xxx.ngrok-free.app', 'zh-CN': 'https://xxx.ngrok-free.app', en: 'https://xxx.ngrok-free.app' },
+    'settings.gwApiTokenLabel': { 'zh-TW': '\u8A8D\u8B49\u4EE4\u724C', 'zh-CN': '\u8BA4\u8BC1\u4EE4\u724C', en: 'Auth Token' },
+    'settings.gwApiModelLabel': { 'zh-TW': '\u6A21\u578B', 'zh-CN': '\u6A21\u578B', en: 'Model' },
     'settings.urlLabel':       { 'zh-TW': '\u9598\u9053\u5668\u4F4D\u5740',     'zh-CN': '\u7F51\u5173\u5730\u5740',       en: 'Gateway URL' },
     'settings.urlPlaceholder': { 'zh-TW': 'ws://localhost:18789', 'zh-CN': 'ws://localhost:18789', en: 'ws://localhost:18789' },
     'settings.tokenLabel':     { 'zh-TW': '\u8A8D\u8B49\u4EE4\u724C',       'zh-CN': '\u8BA4\u8BC1\u4EE4\u724C',       en: 'Auth Token' },

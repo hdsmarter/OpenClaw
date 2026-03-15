@@ -1,6 +1,6 @@
 /**
- * chat-client.js — Tri-mode chat transport
- * Telegram Bot API / Gateway WebSocket / OpenRouter API (SSE streaming)
+ * chat-client.js — Quad-mode chat transport
+ * Telegram Bot API / Gateway WebSocket / OpenRouter API / Gateway HTTP API (SSE streaming)
  * Zero hardcoded strings — all via I18n
  */
 class ChatClient extends EventTarget {
@@ -13,6 +13,7 @@ class ChatClient extends EventTarget {
     openRouterUrl: 'https://openrouter.ai/api/v1/chat/completions',
     openRouterModel: 'anthropic/claude-sonnet-4',
     orMaxHistory: 20,
+    gwApiModel: 'openclaw',
   };
 
   // System prompts for 16 manufacturing HQ agents (English base; agent responds in user's language)
@@ -37,7 +38,7 @@ class ChatClient extends EventTarget {
 
   constructor() {
     super();
-    // Mode: 'telegram' | 'gateway' | 'openrouter'
+    // Mode: 'telegram' | 'gateway' | 'openrouter' | 'gateway-api'
     this.mode = localStorage.getItem('chat-mode') || 'telegram';
 
     // Gateway settings
@@ -53,6 +54,13 @@ class ChatClient extends EventTarget {
     this.orModel = localStorage.getItem('or-model') || ChatClient.DEFAULTS.openRouterModel;
     this._orHistory = {};   // { agentId: [{role, content}] }
     this._orAbort = {};     // { agentId: AbortController }
+
+    // Gateway API settings (OpenClaw HTTP API via ngrok)
+    this.gwApiUrl = localStorage.getItem('gw-api-url') || '';
+    this.gwApiToken = localStorage.getItem('gw-api-token') || '';
+    this.gwApiModel = localStorage.getItem('gw-api-model') || ChatClient.DEFAULTS.gwApiModel;
+    this._gwApiHistory = {};
+    this._gwApiAbort = {};
 
     // State
     this.state = 'disconnected';
@@ -97,6 +105,18 @@ class ChatClient extends EventTarget {
       this.orModel = opts.orModel || ChatClient.DEFAULTS.openRouterModel;
       localStorage.setItem('or-model', this.orModel);
     }
+    if (opts.gwApiUrl !== undefined) {
+      this.gwApiUrl = opts.gwApiUrl || '';
+      localStorage.setItem('gw-api-url', this.gwApiUrl);
+    }
+    if (opts.gwApiToken !== undefined) {
+      this.gwApiToken = opts.gwApiToken || '';
+      localStorage.setItem('gw-api-token', this.gwApiToken);
+    }
+    if (opts.gwApiModel !== undefined) {
+      this.gwApiModel = opts.gwApiModel || ChatClient.DEFAULTS.gwApiModel;
+      localStorage.setItem('gw-api-model', this.gwApiModel);
+    }
   }
 
   // ── Connect ───────────────────────────────────
@@ -106,6 +126,8 @@ class ChatClient extends EventTarget {
       this._connectTelegram();
     } else if (this.mode === 'openrouter') {
       this._connectOpenRouter();
+    } else if (this.mode === 'gateway-api') {
+      this._connectGatewayApi();
     } else {
       this._connectGateway();
     }
@@ -121,6 +143,12 @@ class ChatClient extends EventTarget {
       if (ctrl) ctrl.abort();
     }
     this._orAbort = {};
+
+    // Abort any active Gateway API streams
+    for (const ctrl of Object.values(this._gwApiAbort)) {
+      if (ctrl) ctrl.abort();
+    }
+    this._gwApiAbort = {};
 
     if (this.ws) {
       this.ws.close();
@@ -138,6 +166,9 @@ class ChatClient extends EventTarget {
     if (this.mode === 'openrouter') {
       return this._sendOpenRouter(agentId, text);
     }
+    if (this.mode === 'gateway-api') {
+      return this._sendGatewayApi(agentId, text);
+    }
     return this._sendGateway(agentId, text);
   }
 
@@ -147,6 +178,7 @@ class ChatClient extends EventTarget {
     const mode = (opts && opts.mode) || this.mode;
     if (mode === 'telegram') return this._testTelegram(opts);
     if (mode === 'openrouter') return this._testOpenRouter(opts);
+    if (mode === 'gateway-api') return this._testGatewayApi(opts);
     return this._testGateway(opts);
   }
 
@@ -257,7 +289,7 @@ class ChatClient extends EventTarget {
     return true;
   }
 
-  async _readSSEStream(body, agentId) {
+  async _readSSEStream(body, agentId, historyMap) {
     const reader = body.getReader();
     const decoder = new TextDecoder();
     let fullText = '';
@@ -296,8 +328,9 @@ class ChatClient extends EventTarget {
     }
 
     // Store assistant response in history
-    if (fullText && this._orHistory[agentId]) {
-      this._orHistory[agentId].push({ role: 'assistant', content: fullText });
+    const hist = historyMap || this._orHistory;
+    if (fullText && hist[agentId]) {
+      hist[agentId].push({ role: 'assistant', content: fullText });
     }
 
     // Final response event
@@ -323,6 +356,116 @@ class ChatClient extends EventTarget {
       },
       body: JSON.stringify({
         model: (opts && opts.orModel) || this.orModel,
+        messages: [{ role: 'user', content: 'test' }],
+        max_tokens: 1,
+      }),
+    })
+      .then(r => r.ok)
+      .catch(() => false);
+  }
+
+  // ── Gateway HTTP API (OpenClaw /v1/chat/completions) ──
+
+  _connectGatewayApi() {
+    if (!this.gwApiUrl || !this.gwApiToken) {
+      this._setState('disconnected');
+      return;
+    }
+    this._intentionalClose = false;
+    this._setState('connecting');
+
+    fetch(this.gwApiUrl + '/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + this.gwApiToken,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: this.gwApiModel,
+        messages: [{ role: 'user', content: 'ping' }],
+        max_tokens: 1,
+      }),
+    })
+      .then(r => this._setState(r.ok ? 'connected' : 'disconnected'))
+      .catch(() => this._setState('disconnected'));
+  }
+
+  _sendGatewayApi(agentId, text) {
+    if (this.state !== 'connected' || !this.gwApiUrl || !this.gwApiToken) return false;
+
+    if (!this._gwApiHistory[agentId]) {
+      this._gwApiHistory[agentId] = [];
+    }
+    const history = this._gwApiHistory[agentId];
+    history.push({ role: 'user', content: text });
+    while (history.length > ChatClient.DEFAULTS.orMaxHistory) {
+      history.shift();
+    }
+
+    const systemPrompt = ChatClient.AGENT_SYSTEM_PROMPTS[agentId] || ChatClient.AGENT_SYSTEM_PROMPTS[0];
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      ...history,
+    ];
+
+    if (this._gwApiAbort[agentId]) {
+      this._gwApiAbort[agentId].abort();
+    }
+    const controller = new AbortController();
+    this._gwApiAbort[agentId] = controller;
+
+    this.dispatchEvent(new CustomEvent('message', {
+      detail: { type: 'typing', agentId }
+    }));
+
+    fetch(this.gwApiUrl + '/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + this.gwApiToken,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: this.gwApiModel,
+        messages,
+        stream: true,
+      }),
+      signal: controller.signal,
+    })
+      .then(response => {
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        return this._readSSEStream(response.body, agentId, this._gwApiHistory);
+      })
+      .catch(err => {
+        if (err.name === 'AbortError') return;
+        this.dispatchEvent(new CustomEvent('message', {
+          detail: {
+            type: 'response',
+            agentId,
+            text: I18n.t('chat.sendFail') + ': ' + err.message,
+            final: true,
+          }
+        }));
+      })
+      .finally(() => {
+        delete this._gwApiAbort[agentId];
+      });
+
+    return true;
+  }
+
+  _testGatewayApi(opts) {
+    const url = (opts && opts.gwApiUrl) || this.gwApiUrl;
+    const token = (opts && opts.gwApiToken) || this.gwApiToken;
+    if (!url || !token) return Promise.resolve(false);
+
+    return fetch(url + '/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + token,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: (opts && opts.gwApiModel) || this.gwApiModel,
         messages: [{ role: 'user', content: 'test' }],
         max_tokens: 1,
       }),

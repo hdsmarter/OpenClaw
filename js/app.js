@@ -1,12 +1,15 @@
 /**
  * app.js — Orchestrator
- * I18n + ThemePalette + OfficeScene + StatusFetcher + ChatClient + ChatPanel + Notifications + SettingsPanel
- * Streaming wiring for OpenRouter SSE
+ * AuthGate + I18n + ThemePalette + OfficeScene + StatusFetcher + ChatClient + ChatPanel + Notifications + SettingsPanel
+ * Streaming wiring for OpenRouter / Gateway API SSE
  */
 (function () {
-  // Initialize i18n + theme
+  // Initialize i18n + theme (needed for auth gate UI)
   I18n.init();
   ThemePalette.init();
+
+  // Auth gate — blocks until authenticated, then initializes app
+  AuthGate.guard(function initApp() {
 
   // Theme toggle button
   const themeBtn = document.getElementById('theme-btn');
@@ -106,14 +109,22 @@
   };
 
   // ── Wiring: ChatClient events ─────────────
+  // Track last notified state to prevent reconnect notification spam
+  let _lastNotifiedState = 'disconnected';
+
   cc.addEventListener('connected', () => {
+    _lastNotifiedState = 'connected';
     notify.success('\u2705 ' + I18n.t('app.connected'));
     chat.setOffline(false);
     chat.showTelegramFallback(false);
   });
 
   cc.addEventListener('disconnected', () => {
-    notify.warning('\u26A0\uFE0F ' + I18n.t('app.disconnected'));
+    // Only show warning if we were previously connected (avoid startup & reconnect spam)
+    if (_lastNotifiedState === 'connected') {
+      notify.warning('\u26A0\uFE0F ' + I18n.t('app.disconnected'));
+    }
+    _lastNotifiedState = 'disconnected';
     chat.setOffline(true);
     chat.showTelegramFallback(cc.mode === 'telegram');
   });
@@ -121,7 +132,7 @@
   cc.addEventListener('message', (e) => {
     const d = e.detail;
 
-    // OpenRouter streaming — incremental text
+    // OpenRouter / Gateway API streaming — incremental text
     if (d.type === 'stream') {
       if (!chat._streaming) {
         chat.setTyping(false);
@@ -253,4 +264,6 @@
 
   updateClock();
   setInterval(updateClock, 1000);
+
+  }); // end AuthGate.guard
 })();

@@ -1,6 +1,6 @@
 /**
  * settings-panel.js — Settings modal (SRP)
- * Language selector, tri-mode chat (Telegram/Gateway/OpenRouter), connection settings
+ * Language selector, quad-mode chat (Telegram/Gateway/OpenRouter/Gateway API), connection settings
  * All strings via I18n.t() — zero hardcoded text
  */
 class SettingsPanel {
@@ -12,6 +12,11 @@ class SettingsPanel {
       chatModeTg:        I18n.t('settings.chatModeTg'),
       chatModeGw:        I18n.t('settings.chatModeGw'),
       chatModeOr:        I18n.t('settings.chatModeOr'),
+      chatModeGwApi:     I18n.t('settings.chatModeGwApi'),
+      gwApiUrlLabel:     I18n.t('settings.gwApiUrlLabel'),
+      gwApiUrlPlaceholder: I18n.t('settings.gwApiUrlPlaceholder'),
+      gwApiTokenLabel:   I18n.t('settings.gwApiTokenLabel'),
+      gwApiModelLabel:   I18n.t('settings.gwApiModelLabel'),
       urlLabel:          I18n.t('settings.urlLabel'),
       urlPlaceholder:    I18n.t('settings.urlPlaceholder'),
       tokenLabel:        I18n.t('settings.tokenLabel'),
@@ -102,9 +107,13 @@ class SettingsPanel {
     this._orOption = document.createElement('option');
     this._orOption.value = 'openrouter';
     this._orOption.textContent = T.chatModeOr;
+    this._gwApiOption = document.createElement('option');
+    this._gwApiOption.value = 'gateway-api';
+    this._gwApiOption.textContent = T.chatModeGwApi;
     this.modeSelect.appendChild(this._tgOption);
     this.modeSelect.appendChild(this._gwOption);
     this.modeSelect.appendChild(this._orOption);
+    this.modeSelect.appendChild(this._gwApiOption);
     this.modeSelect.value = this.cc.mode;
     this.modeSelect.addEventListener('change', () => this._toggleModeFields());
     this.modeGroup.appendChild(this.modeLabel);
@@ -160,6 +169,27 @@ class SettingsPanel {
 
     this.modal.appendChild(this.orFieldsContainer);
 
+    // ── Gateway API fields ───────────────────────
+    this.gwApiFieldsContainer = document.createElement('div');
+    this.gwApiFieldsContainer.className = 'settings-mode-fields';
+
+    this._addFieldTo(this.gwApiFieldsContainer, T.gwApiUrlLabel, 'gw-api-url');
+    this.gwApiUrlInput = this.gwApiFieldsContainer.querySelector('.settings-input-gw-api-url');
+    this.gwApiUrlInput.placeholder = T.gwApiUrlPlaceholder;
+    this.gwApiUrlInput.value = this.cc.gwApiUrl;
+
+    this._addFieldTo(this.gwApiFieldsContainer, T.gwApiTokenLabel, 'gw-api-token');
+    this.gwApiTokenInput = this.gwApiFieldsContainer.querySelector('.settings-input-gw-api-token');
+    this.gwApiTokenInput.type = 'password';
+    this.gwApiTokenInput.value = this.cc.gwApiToken;
+
+    this._addFieldTo(this.gwApiFieldsContainer, T.gwApiModelLabel, 'gw-api-model');
+    this.gwApiModelInput = this.gwApiFieldsContainer.querySelector('.settings-input-gw-api-model');
+    this.gwApiModelInput.value = this.cc.gwApiModel;
+    this.gwApiModelInput.placeholder = ChatClient.DEFAULTS.gwApiModel;
+
+    this.modal.appendChild(this.gwApiFieldsContainer);
+
     // Status indicator
     this.statusEl = document.createElement('div');
     this.statusEl.className = 'settings-status';
@@ -185,6 +215,12 @@ class SettingsPanel {
     this.cancelBtn.textContent = T.cancelBtn;
     this.cancelBtn.addEventListener('click', () => this.close());
 
+    this.logoutBtn = document.createElement('button');
+    this.logoutBtn.className = 'settings-btn-logout';
+    this.logoutBtn.textContent = I18n.t('auth.logoutBtn');
+    this.logoutBtn.addEventListener('click', () => AuthGate.logout());
+
+    btnRow.appendChild(this.logoutBtn);
     btnRow.appendChild(this.testBtn);
     btnRow.appendChild(this.cancelBtn);
     btnRow.appendChild(this.saveBtn);
@@ -215,6 +251,7 @@ class SettingsPanel {
     this.tgFieldsContainer.style.display = mode === 'telegram' ? 'block' : 'none';
     this.gwFieldsContainer.style.display = mode === 'gateway' ? 'block' : 'none';
     this.orFieldsContainer.style.display = mode === 'openrouter' ? 'block' : 'none';
+    this.gwApiFieldsContainer.style.display = mode === 'gateway-api' ? 'block' : 'none';
   }
 
   _updateTexts() {
@@ -226,9 +263,11 @@ class SettingsPanel {
     this._tgOption.textContent = T.chatModeTg;
     this._gwOption.textContent = T.chatModeGw;
     this._orOption.textContent = T.chatModeOr;
+    this._gwApiOption.textContent = T.chatModeGwApi;
     this.testBtn.textContent = T.testBtn;
     this.saveBtn.textContent = T.saveBtn;
     this.cancelBtn.textContent = T.cancelBtn;
+    this.logoutBtn.textContent = I18n.t('auth.logoutBtn');
     this._updateStatus();
   }
 
@@ -242,6 +281,9 @@ class SettingsPanel {
     this.tgChatIdInput.value = this.cc.tgChatId;
     this.orApiKeyInput.value = this.cc.orApiKey;
     this.orModelInput.value = this.cc.orModel;
+    this.gwApiUrlInput.value = this.cc.gwApiUrl;
+    this.gwApiTokenInput.value = this.cc.gwApiToken;
+    this.gwApiModelInput.value = this.cc.gwApiModel;
     this._toggleModeFields();
     this._updateStatus();
     this.overlay.classList.add('open');
@@ -280,6 +322,13 @@ class SettingsPanel {
         orApiKey: this.orApiKeyInput.value,
         orModel: this.orModelInput.value || ChatClient.DEFAULTS.openRouterModel,
       });
+    } else if (mode === 'gateway-api') {
+      ok = await this.cc.testConnection({
+        mode: 'gateway-api',
+        gwApiUrl: this.gwApiUrlInput.value,
+        gwApiToken: this.gwApiTokenInput.value,
+        gwApiModel: this.gwApiModelInput.value || ChatClient.DEFAULTS.gwApiModel,
+      });
     } else {
       ok = await this.cc.testConnection({ mode: 'gateway', url: this.urlInput.value, token: this.tokenInput.value });
     }
@@ -301,6 +350,9 @@ class SettingsPanel {
       tgChatId: this.tgChatIdInput.value,
       orApiKey: this.orApiKeyInput.value,
       orModel: this.orModelInput.value || ChatClient.DEFAULTS.openRouterModel,
+      gwApiUrl: this.gwApiUrlInput.value,
+      gwApiToken: this.gwApiTokenInput.value,
+      gwApiModel: this.gwApiModelInput.value || ChatClient.DEFAULTS.gwApiModel,
     });
     this.cc.connect();
     this.close();
