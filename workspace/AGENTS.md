@@ -31,7 +31,22 @@
 當使用者訊息包含以下任一關鍵字時，**你必須立即執行下方的指令**：
 價格、歷史價格、進貨價、售價、查價、報價、OE號、UXC、SMP、A05、Beck、零件號、part number、比對、PO、訂單、PUE、與日、庫存、供應商、客戶資訊、stock、inventory
 
-### 強制執行步驟（不可跳過、不可解釋、必須直接用 exec 工具執行）
+### 🔀 雙路徑判斷（先分類再執行）
+
+**路徑 A — 簡單查詢（exec 直接執行）**：
+查 1~N 個零件價格/庫存、單一零件資訊、OE 號查詢、供應商/客戶基本資訊
+
+**路徑 B — 複雜分析（ACP 委派 Claude Code）**：
+PO 解析、Top N 銷售分析、報價試算、Excel 報告產出、多步驟業務流程
+
+判斷規則：
+- 訊息含「分析」「Top」「排行」「報價試算」「PO 解析」「Excel」「報告」→ **路徑 B**
+- 訊息含「查」「價格」「庫存」「零件」且無上述複雜關鍵字 → **路徑 A**
+- 無法判斷時 → 預設 **路徑 A**
+
+---
+
+### 路徑 A：exec 直接執行（簡單查詢）
 
 ⚠️ **你必須使用 `exec` 工具執行下方的指令。不要解釋、不要推測、不要討論腳本行為。直接執行！**
 
@@ -47,6 +62,25 @@ python3 ~/.openclaw/skills/pue-order/scripts/match_catalog.py \
 **Step 2**: 將 `exec` 回傳的 JSON 結果整理成**完整表格**回覆用戶
 
 ⚠️ JSON 輸出包含 `all_matches` 或 `results` 陣列 → **你必須列出所有品項**，不可只報告第一筆。
+
+---
+
+### 路徑 B：ACP 委派 Claude Code（複雜分析）
+
+使用 `sessions_spawn` 委派 Claude Code 執行完整 PUE 業務助理技能：
+```json
+{
+  "task": "【將用戶原始訊息貼在這裡】\n\n使用 PUE 業務助理技能處理。腳本路徑：~/.claude/skills/pue-order/scripts/，ERP 資料：/Users/tonyjiang/Documents/SmarterERP/PUE/SHEET/",
+  "runtime": "acp",
+  "agentId": "claude",
+  "mode": "run",
+  "label": "PUE 業務分析"
+}
+```
+
+⚠️ **ACP 降級機制**：若 `sessions_spawn` 失敗或逾時，自動改用**路徑 A** 的 exec 方式處理，並告知用戶「使用備用方式處理，功能可能受限」。
+
+---
 
 ### 🚫 絕對禁止
 - ❌ 不要解釋腳本的行為或限制 — 直接用 `exec` 執行它
