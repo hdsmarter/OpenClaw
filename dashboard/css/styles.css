@@ -1412,7 +1412,6 @@ body {
   background: var(--chat-user-bg);
   color: var(--chat-user-text);
   border-bottom-right-radius: 4px;
-  max-width: 85%;
 }
 
 .chat-msg-agent .chat-bubble {
@@ -1519,6 +1518,42 @@ body {
   color: var(--accent-light);
   text-decoration: underline;
 }
+
+/* Tables in chat bubbles */
+.chat-table {
+  border-collapse: collapse;
+  font-size: 12px;
+  margin: 8px 0;
+  width: 100%;
+}
+.chat-table th, .chat-table td {
+  border: 1px solid var(--chat-border);
+  padding: 4px 8px;
+  text-align: left;
+  white-space: nowrap;
+}
+.chat-table th {
+  background: var(--surface-hover);
+  font-weight: 600;
+}
+:root[data-theme="dark"] .chat-table th,
+:root[data-theme="dark"] .chat-table td {
+  border-color: rgba(255,255,255,0.1);
+}
+
+/* CSV download button */
+.chat-csv-btn {
+  font-size: 11px;
+  color: var(--accent);
+  background: none;
+  border: 1px solid var(--input-border);
+  border-radius: 4px;
+  padding: 2px 8px;
+  cursor: pointer;
+  margin-top: 4px;
+  font-family: inherit;
+}
+.chat-csv-btn:hover { background: var(--surface-hover); border-color: var(--accent); }
 
 /* Scroll-to-bottom floating button */
 .chat-scroll-bottom-btn {
@@ -2334,7 +2369,6 @@ body {
 
   /* Mobile chat bubble/input adjustments */
   .chat-bubble { max-width: 88%; padding: 10px 14px; }
-  .chat-msg-user .chat-bubble { max-width: 92%; }
   .chat-input-area { padding: 10px 12px; }
   .chat-msg-avatar { width: 28px; height: 28px; }
 

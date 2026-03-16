@@ -29,7 +29,7 @@
 
 ### 觸發條件
 當使用者訊息包含以下任一關鍵字時，**你必須立即執行下方的指令**：
-價格、歷史價格、進貨價、售價、查價、報價、OE號、UXC、SMP、A05、Beck、零件號、part number、比對、PO、訂單、PUE、與日
+價格、歷史價格、進貨價、售價、查價、報價、OE號、UXC、SMP、A05、Beck、零件號、part number、比對、PO、訂單、PUE、與日、庫存、供應商、客戶資訊、stock、inventory
 
 ### 強制執行步驟（不可跳過）
 
@@ -38,10 +38,20 @@
 read ~/.openclaw/skills/pue-order/SKILL.md
 ```
 
-**Step 2**: 執行快速查價腳本
+**Step 2**: 根據查詢類型選擇模式執行腳本
+
+**單一零件深度查詢**（查一個零件的完整資訊：庫存、供應商、所有歷史）：
 ```bash
 python3 ~/.openclaw/skills/pue-order/scripts/match_catalog.py \
-  --lookup "用戶提供的零件號碼" \
+  --info "用戶提供的零件號碼" \
+  --customer 用戶提供的客戶代碼 \
+  --data /Users/tonyjiang/Documents/SmarterERP/PUE/SHEET
+```
+
+**多零件批次查價**（查多個零件的價格和庫存）：
+```bash
+python3 ~/.openclaw/skills/pue-order/scripts/match_catalog.py \
+  --lookup "零件1,零件2,零件3" \
   --customer 用戶提供的客戶代碼 \
   --data /Users/tonyjiang/Documents/SmarterERP/PUE/SHEET
 ```

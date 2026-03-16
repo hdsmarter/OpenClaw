@@ -713,19 +713,9 @@ class ChatPanel {
       meta.textContent = timeStr;
     }
 
-    // Copy button for agent messages
-    if (role === 'agent') {
-      var copyBtn = document.createElement('button');
-      copyBtn.className = 'chat-msg-copy';
-      copyBtn.setAttribute('aria-label', 'Copy');
-      copyBtn.appendChild(svgFromTemplate(SvgIcons.copy));
-      copyBtn.addEventListener('click', function() {
-        navigator.clipboard.writeText(text).then(function() {
-          copyBtn.classList.add('copied');
-          setTimeout(function() { copyBtn.classList.remove('copied'); }, 1500);
-        }).catch(function() {});
-      });
-      meta.appendChild(copyBtn);
+    // Copy button (all roles)
+    if (role !== 'system') {
+      this._addMsgActions(meta, text, role);
     }
 
     contentWrap.appendChild(meta);
@@ -735,9 +725,9 @@ class ChatPanel {
     bubble.className = 'chat-bubble';
     if (role === 'agent') {
       this._renderMarkdown(bubble, text);
+      // Add CSV download button if table detected
+      this._maybeAddCsvBtn(bubble, contentWrap, text);
     } else {
-      // User messages: preserve whitespace + line breaks
-      bubble.style.whiteSpace = 'pre-wrap';
       bubble.textContent = text;
     }
     contentWrap.appendChild(bubble);
@@ -837,21 +827,15 @@ class ChatPanel {
         var savedText = bubble.innerText || bubble.textContent;
         this._messages.push({ role: 'agent', text: savedText, time: new Date() });
 
-        // Add copy button to meta after streaming
+        // Add action buttons after streaming
         var meta = streamingMsg.querySelector('.chat-msg-meta');
         if (meta) {
-          var finalText = savedText;
-          var copyBtn = document.createElement('button');
-          copyBtn.className = 'chat-msg-copy';
-          copyBtn.setAttribute('aria-label', 'Copy');
-          copyBtn.appendChild(svgFromTemplate(SvgIcons.copy));
-          copyBtn.addEventListener('click', function() {
-            navigator.clipboard.writeText(finalText).then(function() {
-              copyBtn.classList.add('copied');
-              setTimeout(function() { copyBtn.classList.remove('copied'); }, 1500);
-            }).catch(function() {});
-          });
-          meta.appendChild(copyBtn);
+          this._addMsgActions(meta, savedText, 'agent');
+        }
+        // Add CSV download if table detected
+        var contentWrap = streamingMsg.querySelector('.chat-msg-content');
+        if (bubble && contentWrap) {
+          this._maybeAddCsvBtn(bubble, contentWrap, savedText);
         }
       }
     }
@@ -1032,21 +1016,9 @@ class ChatPanel {
       meta.textContent = timeStr;
     }
 
-    // Copy button for agent messages
-    if (msg.role === 'agent') {
-      var copyBtn = document.createElement('button');
-      copyBtn.className = 'chat-msg-copy';
-      copyBtn.setAttribute('aria-label', 'Copy');
-      copyBtn.appendChild(svgFromTemplate(SvgIcons.copy));
-      (function(text) {
-        copyBtn.addEventListener('click', function() {
-          navigator.clipboard.writeText(text).then(function() {
-            copyBtn.classList.add('copied');
-            setTimeout(function() { copyBtn.classList.remove('copied'); }, 1500);
-          }).catch(function() {});
-        });
-      })(msg.text);
-      meta.appendChild(copyBtn);
+    // Copy button (all roles)
+    if (msg.role !== 'system') {
+      this._addMsgActions(meta, msg.text, msg.role);
     }
 
     contentWrap.appendChild(meta);
@@ -1055,8 +1027,8 @@ class ChatPanel {
     bubble.className = 'chat-bubble';
     if (msg.role === 'agent') {
       this._renderMarkdown(bubble, msg.text);
+      this._maybeAddCsvBtn(bubble, contentWrap, msg.text);
     } else {
-      bubble.style.whiteSpace = 'pre-wrap';
       bubble.textContent = msg.text;
     }
     contentWrap.appendChild(bubble);
@@ -1071,6 +1043,22 @@ class ChatPanel {
     var tmp = document.createElement('span');
     tmp.textContent = text;
     var escaped = tmp.textContent;
+
+    // Extract markdown tables before other processing
+    escaped = escaped.replace(/((?:^\|.+\|[ \t]*\n)+)/gm, function(tableBlock) {
+      var rows = tableBlock.trim().split('\n');
+      if (rows.length < 2) return tableBlock;
+      var html = '<table class="chat-table">';
+      for (var r = 0; r < rows.length; r++) {
+        var cells = rows[r].split('|').filter(function(c, i, a) { return i > 0 && i < a.length - 1; });
+        // Skip separator row (---|---)
+        if (cells.every(function(c) { return /^[\s\-:]+$/.test(c); })) continue;
+        var tag = r === 0 ? 'th' : 'td';
+        html += '<tr>' + cells.map(function(c) { return '<' + tag + '>' + c.trim() + '</' + tag + '>'; }).join('') + '</tr>';
+      }
+      html += '</table>';
+      return html;
+    });
 
     escaped = escaped.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
     escaped = escaped.replace(/`([^`]+)`/g, '<code>$1</code>');
@@ -1271,6 +1259,70 @@ class ChatPanel {
     var a = document.createElement('a');
     a.href = url; a.download = name; a.click();
     setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+  }
+
+  // ── Per-message Actions (Copy / Download / CSV) ──
+
+  _addMsgActions(meta, text, role) {
+    // Copy button
+    var copyBtn = document.createElement('button');
+    copyBtn.className = 'chat-msg-copy';
+    copyBtn.setAttribute('aria-label', I18n.lang === 'en' ? 'Copy' : '複製');
+    copyBtn.appendChild(svgFromTemplate(SvgIcons.copy));
+    copyBtn.addEventListener('click', function() {
+      navigator.clipboard.writeText(text).then(function() {
+        copyBtn.classList.add('copied');
+        setTimeout(function() { copyBtn.classList.remove('copied'); }, 1500);
+      }).catch(function() {});
+    });
+    meta.appendChild(copyBtn);
+
+    // Download text button
+    var dlBtn = document.createElement('button');
+    dlBtn.className = 'chat-msg-copy';
+    dlBtn.setAttribute('aria-label', I18n.lang === 'en' ? 'Download' : '下載');
+    dlBtn.appendChild(svgFromTemplate(SvgIcons.download));
+    var self = this;
+    dlBtn.addEventListener('click', function() {
+      var prefix = role === 'user' ? 'user' : 'agent';
+      self._downloadFile(prefix + '_msg.txt', text, 'text/plain');
+    });
+    meta.appendChild(dlBtn);
+  }
+
+  _maybeAddCsvBtn(bubble, contentWrap, text) {
+    // Detect markdown table in text (lines starting with |)
+    if (!/^\|.+\|/m.test(text)) return;
+    var csv = this._tableToCsv(text);
+    if (!csv) return;
+
+    var csvBtn = document.createElement('button');
+    csvBtn.className = 'chat-csv-btn';
+    csvBtn.textContent = I18n.lang === 'en' ? 'Download CSV' : '下載 CSV';
+    var self = this;
+    csvBtn.addEventListener('click', function() {
+      // BOM for Excel CJK support
+      self._downloadFile('table.csv', '\uFEFF' + csv, 'text/csv');
+    });
+    contentWrap.appendChild(csvBtn);
+  }
+
+  _tableToCsv(text) {
+    var lines = text.split('\n');
+    var csvRows = [];
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i].trim();
+      if (!line.startsWith('|') || !line.endsWith('|')) continue;
+      var cells = line.split('|').filter(function(c, idx, a) { return idx > 0 && idx < a.length - 1; });
+      // Skip separator row
+      if (cells.every(function(c) { return /^[\s\-:]+$/.test(c); })) continue;
+      var row = cells.map(function(c) {
+        var val = c.trim().replace(/"/g, '""');
+        return '"' + val + '"';
+      });
+      csvRows.push(row.join(','));
+    }
+    return csvRows.length >= 2 ? csvRows.join('\n') : null;
   }
 
   // ── Send Message ──────────────────────────────
