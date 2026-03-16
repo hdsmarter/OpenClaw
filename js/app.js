@@ -182,6 +182,16 @@
   chat.onSend = function(agentId, text, fileAttachment) {
     return cc.sendChat(agentId, text, fileAttachment);
   };
+  chat.onSendFail = function() {
+    var reason = cc.sendFailReason || '';
+    var msg = I18n.t('chat.sendFail');
+    if (reason.indexOf('missing-gw') === 0) {
+      msg += ' — ' + I18n.t('chat.checkSettings');
+    } else if (reason.indexOf('telegram') === 0 || reason.indexOf('openrouter') === 0 || reason.indexOf('gateway-ws') === 0) {
+      msg += ' — ' + I18n.t('chat.checkSettings');
+    }
+    notify.warning(msg);
+  };
   chat.onClearHistory = function() {
     return cc.resetGatewaySession();
   };

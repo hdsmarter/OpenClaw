@@ -162,6 +162,7 @@ class ChatClient extends EventTarget {
   // ── Send message (unified) ────────────────────
 
   sendChat(agentId, text, fileAttachment) {
+    this.sendFailReason = '';
     if (this.mode === 'telegram') {
       return this._sendTelegram(agentId, text);
     }
@@ -236,7 +237,10 @@ class ChatClient extends EventTarget {
   }
 
   _sendOpenRouter(agentId, text, fileAttachment) {
-    if (this.state !== 'connected' || !this.orApiKey) return false;
+    if (this.state !== 'connected' || !this.orApiKey) {
+      this.sendFailReason = 'openrouter-not-configured';
+      return false;
+    }
 
     // Initialize history for this agent
     if (!this._orHistory[agentId]) {
@@ -459,7 +463,10 @@ class ChatClient extends EventTarget {
   _sendGatewayApi(agentId, text, fileAttachment) {
     // Gateway API is stateless HTTP — don't block on connection state.
     // Only block if credentials are missing.
-    if (!this.gwApiUrl || !this.gwApiToken) return false;
+    if (!this.gwApiUrl || !this.gwApiToken) {
+      this.sendFailReason = !this.gwApiUrl ? 'missing-gw-url' : 'missing-gw-token';
+      return false;
+    }
 
     // ALL gateway-api messages route through /v1/responses (Agent pipeline).
     // This enables: workspace knowledge (PUE-ASSIST.md), tool calling, skill triggering.
@@ -811,7 +818,10 @@ class ChatClient extends EventTarget {
   }
 
   _sendTelegram(agentId, text) {
-    if (this.state !== 'connected' || !this.tgToken || !this.tgChatId) return false;
+    if (this.state !== 'connected' || !this.tgToken || !this.tgChatId) {
+      this.sendFailReason = 'telegram-not-configured';
+      return false;
+    }
 
     const prefix = I18n.agentName(agentId);
     const body = {
@@ -885,7 +895,10 @@ class ChatClient extends EventTarget {
   }
 
   _sendGateway(agentId, text) {
-    if (this.state !== 'connected' || !this.ws) return false;
+    if (this.state !== 'connected' || !this.ws) {
+      this.sendFailReason = 'gateway-ws-disconnected';
+      return false;
+    }
     this.ws.send(JSON.stringify({ type: 'chat', agentId, text }));
     return true;
   }
