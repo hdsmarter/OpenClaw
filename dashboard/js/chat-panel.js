@@ -1391,10 +1391,12 @@ class ChatPanel {
     if (this.onSend) {
       var sent = this.onSend(this.agent.id, text, fileAttachment);
       if (!sent) {
-        // Mark the user's message as failed (red border) — no system bubble
+        // Mark the user's message as failed (red border)
         var last = this._messageList.lastElementChild;
         if (last) last.classList.add('chat-msg-failed');
         this._sendBtn.classList.remove('loading');
+        // Notify user with connection settings hint
+        if (this.onSendFail) this.onSendFail();
       }
     }
 
