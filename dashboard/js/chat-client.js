@@ -557,6 +557,7 @@ class ChatClient extends EventTarget {
     const decoder = new TextDecoder();
     let fullText = '';
     let buffer = '';
+    let currentOutputIndex = 0;
 
     try {
       while (true) {
@@ -577,10 +578,30 @@ class ChatClient extends EventTarget {
 
             // OpenResponses format
             if (parsed.type === 'response.output_text.delta' && parsed.delta) {
+              // New output item → dispatch previous as final, start fresh
+              if (parsed.output_index !== undefined && parsed.output_index !== currentOutputIndex) {
+                if (fullText) {
+                  this.dispatchEvent(new CustomEvent('message', {
+                    detail: { type: 'response', agentId, text: fullText, final: true }
+                  }));
+                }
+                fullText = '';
+                currentOutputIndex = parsed.output_index;
+              }
               fullText += parsed.delta;
               this.dispatchEvent(new CustomEvent('message', {
                 detail: { type: 'stream', agentId, text: fullText }
               }));
+            }
+            // Handle output_item.added — reset accumulator for new items
+            else if (parsed.type === 'response.output_item.added' && parsed.output_index !== undefined) {
+              if (fullText && parsed.output_index !== currentOutputIndex) {
+                this.dispatchEvent(new CustomEvent('message', {
+                  detail: { type: 'response', agentId, text: fullText, final: true }
+                }));
+                fullText = '';
+              }
+              currentOutputIndex = parsed.output_index;
             }
             // Fallback: chat/completions format (in case gateway proxies as such)
             else if (parsed.choices && parsed.choices[0]?.delta?.content) {
