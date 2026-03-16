@@ -66,6 +66,9 @@ class ChatPanel {
     // Container: the view-chat div
     this._container = document.getElementById('view-chat');
 
+    // Restore persisted chat history
+    this._loadFromStorage();
+
     I18n.onChange(() => this._updateTexts());
   }
 
@@ -170,6 +173,20 @@ class ChatPanel {
     this._downloadBtn.appendChild(svgFromTemplate(SvgIcons.download));
     this._downloadBtn.addEventListener('click', () => this._showDownloadModal());
     actions.appendChild(this._downloadBtn);
+
+    // Clear chat history button
+    var clearBtn = document.createElement('button');
+    clearBtn.className = 'chat-action-btn';
+    clearBtn.title = I18n.lang === 'en' ? 'Clear chat' : '清除聊天';
+    clearBtn.setAttribute('aria-label', clearBtn.title);
+    clearBtn.textContent = '\uD83D\uDDD1';
+    clearBtn.style.fontSize = '14px';
+    clearBtn.addEventListener('click', () => {
+      var msg = I18n.lang === 'en' ? 'Clear all chat history?' : '確定清除所有聊天記錄？';
+      if (confirm(msg)) this.clearChatHistory();
+    });
+    actions.appendChild(clearBtn);
+
     header.appendChild(actions);
     mainArea.appendChild(header);
 
@@ -211,6 +228,23 @@ class ChatPanel {
     this._messageList.appendChild(this._emptyState);
 
     mainArea.appendChild(this._messageList);
+
+    // Scroll-to-bottom floating button
+    this._scrollBottomBtn = document.createElement('button');
+    this._scrollBottomBtn.className = 'chat-scroll-bottom-btn';
+    this._scrollBottomBtn.setAttribute('aria-label', 'Scroll to bottom');
+    this._scrollBottomBtn.textContent = '\u2193';
+    this._scrollBottomBtn.addEventListener('click', () => this._scrollToBottom());
+    mainArea.appendChild(this._scrollBottomBtn);
+
+    // Show/hide scroll button based on scroll position
+    this._messageList.addEventListener('scroll', () => {
+      var el = this._messageList;
+      var distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+      if (this._scrollBottomBtn) {
+        this._scrollBottomBtn.style.display = distanceFromBottom > 200 ? 'flex' : 'none';
+      }
+    });
 
     // Typing indicator
     this._typingEl = document.createElement('div');
@@ -511,6 +545,51 @@ class ChatPanel {
     if (this._input) this._input.focus();
   }
 
+  // Suggestion prompts per agent (by agentId)
+  static get AGENT_SUGGESTIONS() {
+    var isZh = typeof I18n !== 'undefined' && I18n.lang && I18n.lang.startsWith('zh');
+    if (isZh) {
+      return {
+        0:  ['本月 KPI 報告', '銷售數據分析', '庫存週轉率查詢'],
+        1:  ['擬定行銷策略', '競品分析報告', '社群媒體規劃'],
+        2:  ['本季預算摘要', 'ROI 分析', '成本優化建議'],
+        3:  ['招聘流程建議', '員工滿意度調查', '出勤政策問題'],
+        4:  ['供應鏈狀態', '庫存管理建議', '供應商評估'],
+        5:  ['系統架構建議', '雲端部署規劃', '資安檢測報告'],
+        6:  ['專案進度總覽', '風險評估報告', '衝刺規劃建議'],
+        7:  ['客訴處理流程', 'SLA 達成率', '客戶滿意度提升'],
+        8:  ['合約審查要點', '法規遵循建議', '智財保護策略'],
+        9:  ['產品路線圖', '功能優先排序', '使用者故事撰寫'],
+        10: ['UI 設計評估', '使用者研究規劃', '原型設計建議'],
+        11: ['內容行銷策略', 'SEO 優化建議', '編輯日曆規劃'],
+        12: ['商業開發策略', '合作夥伴拓展', '潛在客戶開發'],
+        13: ['品質管理流程', 'ISO 標準檢核', '持續改善建議'],
+        14: ['資安風險評估', '弱點掃描報告', '事件應變計畫'],
+        15: ['組織設計建議', '人才發展策略', '團隊建設規劃'],
+        16: ['查詢客戶歷史價格', '產品目錄比對', '報價單生成'],
+      };
+    }
+    return {
+      0:  ['Monthly KPI report', 'Sales data analysis', 'Inventory turnover query'],
+      1:  ['Draft marketing strategy', 'Competitor analysis', 'Social media plan'],
+      2:  ['Quarterly budget summary', 'ROI analysis', 'Cost optimization'],
+      3:  ['Hiring process tips', 'Employee satisfaction', 'Attendance policy'],
+      4:  ['Supply chain status', 'Inventory management', 'Vendor evaluation'],
+      5:  ['System architecture', 'Cloud deployment plan', 'Security audit'],
+      6:  ['Project status overview', 'Risk assessment', 'Sprint planning'],
+      7:  ['Ticket workflow', 'SLA compliance rate', 'Customer satisfaction'],
+      8:  ['Contract review', 'Regulatory compliance', 'IP protection'],
+      9:  ['Product roadmap', 'Feature prioritization', 'User story writing'],
+      10: ['UI design review', 'User research plan', 'Prototype feedback'],
+      11: ['Content strategy', 'SEO optimization', 'Editorial calendar'],
+      12: ['Business development', 'Partnership strategy', 'Lead generation'],
+      13: ['QA process review', 'ISO compliance check', 'Continuous improvement'],
+      14: ['Security risk assessment', 'Vulnerability scan', 'Incident response'],
+      15: ['Org design advice', 'Talent development', 'Team building plan'],
+      16: ['Price history lookup', 'Product catalog match', 'Generate quotation'],
+    };
+  }
+
   _showWelcomeMessage(agent) {
     var name = I18n.agentName(agent.id);
     var role = I18n.agentRole(agent.id);
@@ -525,6 +604,36 @@ class ChatPanel {
     }
 
     this.addMessage('agent', greeting);
+
+    // Add suggestion chips after welcome message
+    this._showSuggestionChips(agent.id);
+  }
+
+  _showSuggestionChips(agentId) {
+    var suggestions = ChatPanel.AGENT_SUGGESTIONS[agentId];
+    if (!suggestions || suggestions.length === 0) return;
+
+    var chipContainer = document.createElement('div');
+    chipContainer.className = 'chat-suggestion-chips';
+
+    for (var i = 0; i < suggestions.length; i++) {
+      var chip = document.createElement('button');
+      chip.className = 'chat-suggestion-chip';
+      chip.textContent = suggestions[i];
+      (function(text, container) {
+        chip.addEventListener('click', function() {
+          // Remove chips after click
+          container.remove();
+          // Fill input and send
+          this._input.value = text;
+          this._sendMessage();
+        }.bind(this));
+      }.bind(this))(suggestions[i], chipContainer);
+      chipContainer.appendChild(chip);
+    }
+
+    this._messageList.appendChild(chipContainer);
+    this._scrollToBottom();
   }
 
   close() {
@@ -558,9 +667,23 @@ class ChatPanel {
     var msg = { role: role, text: text, time: time, failed: opts && opts.failed };
     this._messages.push(msg);
 
+    // Check if this message should be grouped with the previous one
+    var isGrouped = false;
+    if (this._messages.length >= 2) {
+      var prev = this._messages[this._messages.length - 2];
+      if (prev.role === role && prev.role !== 'system') {
+        var timeDiff = time - (prev.time || 0);
+        if (timeDiff < 120000) isGrouped = true; // 2 minutes
+      }
+    }
+
+    // Insert time separator if gap > 5 minutes from previous message
+    this._maybeInsertTimeSeparator(time);
+
     var msgEl = document.createElement('div');
     msgEl.className = 'chat-msg chat-msg-' + role;
     if (msg.failed) msgEl.classList.add('chat-msg-failed');
+    if (isGrouped) msgEl.classList.add('chat-msg-grouped');
 
     // Avatar for agent messages (unique per-agent icon)
     if (role === 'agent' && this.agent) {
@@ -638,6 +761,12 @@ class ChatPanel {
 
     // Update agent list last message
     this._updateAgentListLastMsg(this._activeAgentId, text);
+
+    // Persist to localStorage
+    if (this._activeAgentId !== null) {
+      this._agentMessages.set(this._activeAgentId, this._messages.slice());
+      this._persistToStorage();
+    }
   }
 
   startStreamingMessage() {
@@ -722,6 +851,13 @@ class ChatPanel {
     }
     this._streaming = false;
     if (this._typingEl) this._typingEl.style.display = 'none';
+    if (this._sendBtn) this._sendBtn.classList.remove('loading');
+
+    // Persist after streaming completes
+    if (this._activeAgentId !== null) {
+      this._agentMessages.set(this._activeAgentId, this._messages.slice());
+      this._persistToStorage();
+    }
   }
 
   // Update agent status in left panel + header
@@ -756,6 +892,54 @@ class ChatPanel {
     if (this._activeAgentId !== null) {
       this._agentMessages.set(this._activeAgentId, this._messages.slice());
     }
+    this._persistToStorage();
+  }
+
+  _persistToStorage() {
+    try {
+      var obj = {};
+      this._agentMessages.forEach(function(msgs, agentId) {
+        // Keep last 50 messages per agent
+        var trimmed = msgs.slice(-50);
+        obj[agentId] = trimmed.map(function(m) {
+          return { role: m.role, text: m.text, time: m.time ? m.time.toISOString() : null, failed: m.failed || false };
+        });
+      });
+      localStorage.setItem('oc-chat-history', JSON.stringify(obj));
+    } catch (e) {
+      // localStorage full or unavailable — silently ignore
+    }
+  }
+
+  _loadFromStorage() {
+    try {
+      var raw = localStorage.getItem('oc-chat-history');
+      if (!raw) return;
+      var obj = JSON.parse(raw);
+      for (var key in obj) {
+        if (!obj.hasOwnProperty(key)) continue;
+        var agentId = parseInt(key, 10);
+        var msgs = obj[key].map(function(m) {
+          return { role: m.role, text: m.text, time: m.time ? new Date(m.time) : new Date(), failed: m.failed || false };
+        });
+        this._agentMessages.set(agentId, msgs);
+        // Mark agent as greeted if they have messages
+        if (msgs.length > 0) this._greeted.add(agentId);
+      }
+    } catch (e) {
+      // Corrupted data — start fresh
+    }
+  }
+
+  clearChatHistory() {
+    this._agentMessages.clear();
+    this._greeted.clear();
+    this._messages = [];
+    localStorage.removeItem('oc-chat-history');
+    if (this.agent) {
+      this._restoreConversation(this.agent.id);
+      this._showWelcomeMessage(this.agent);
+    }
   }
 
   _restoreConversation(agentId) {
@@ -770,7 +954,7 @@ class ChatPanel {
     if (saved && saved.length > 0) {
       this._messages = saved.slice();
       for (var i = 0; i < this._messages.length; i++) {
-        this._renderSavedMessage(this._messages[i]);
+        this._renderSavedMessage(this._messages[i], i);
       }
     } else {
       this._messages = [];
@@ -778,9 +962,23 @@ class ChatPanel {
     this._scrollToBottom();
   }
 
-  _renderSavedMessage(msg) {
+  _renderSavedMessage(msg, index) {
+    // Check grouping with previous message
+    var isGrouped = false;
+    if (index > 0) {
+      var prev = this._messages[index - 1];
+      if (prev.role === msg.role && prev.role !== 'system') {
+        var timeDiff = (msg.time || 0) - (prev.time || 0);
+        if (timeDiff < 120000) isGrouped = true;
+      }
+    }
+
+    // Insert time separator if gap > 5 minutes
+    this._maybeInsertTimeSeparatorForSaved(msg, index);
+
     var msgEl = document.createElement('div');
     msgEl.className = 'chat-msg chat-msg-' + msg.role;
+    if (isGrouped) msgEl.classList.add('chat-msg-grouped');
 
     // Avatar for agent messages (unique per-agent icon)
     if (msg.role === 'agent' && this.agent) {
@@ -1081,6 +1279,7 @@ class ChatPanel {
 
     this._sending = true;
     this._sendBtn.disabled = true;
+    this._sendBtn.classList.add('loading');
 
     this.addMessage('user', text);
     this._input.value = '';
@@ -1093,6 +1292,7 @@ class ChatPanel {
         var last = this._messageList.lastElementChild;
         if (last) last.classList.add('chat-msg-failed');
         this.addMessage('system', '\u274C ' + I18n.t('chat.sendFail'));
+        this._sendBtn.classList.remove('loading');
       }
     }
 
@@ -1120,5 +1320,57 @@ class ChatPanel {
 
   _scrollToBottom() {
     this._messageList.scrollTop = this._messageList.scrollHeight;
+  }
+
+  // ── Time Separators ─────────────────────────────
+
+  _formatDateLabel(date) {
+    var now = new Date();
+    var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    var msgDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    var diff = today - msgDay;
+    if (diff === 0) return I18n.lang === 'en' ? 'Today' : '今天';
+    if (diff === 86400000) return I18n.lang === 'en' ? 'Yesterday' : '昨天';
+    return (date.getMonth() + 1) + '/' + date.getDate();
+  }
+
+  _createTimeSeparator(date, showDate) {
+    var sep = document.createElement('div');
+    sep.className = 'chat-msg chat-msg-time-separator';
+    var label = '';
+    if (showDate) {
+      label = this._formatDateLabel(date) + ' ';
+    }
+    label += String(date.getHours()).padStart(2, '0') + ':' + String(date.getMinutes()).padStart(2, '0');
+    sep.textContent = label;
+    return sep;
+  }
+
+  _maybeInsertTimeSeparator(currentTime) {
+    if (this._messages.length < 2) return;
+    var prev = this._messages[this._messages.length - 2];
+    if (!prev.time) return;
+    var diff = currentTime - prev.time;
+    var showDate = prev.time.toDateString() !== currentTime.toDateString();
+    if (diff > 300000 || showDate) { // 5 minutes
+      this._messageList.appendChild(this._createTimeSeparator(currentTime, showDate));
+    }
+  }
+
+  _maybeInsertTimeSeparatorForSaved(msg, index) {
+    if (index === 0) {
+      // Always show date for first message
+      if (msg.time) {
+        this._messageList.appendChild(this._createTimeSeparator(msg.time, true));
+      }
+      return;
+    }
+    var prev = this._messages[index - 1];
+    if (!prev.time || !msg.time) return;
+    var diff = msg.time - prev.time;
+    var showDate = prev.time.toDateString() !== msg.time.toDateString();
+    if (diff > 300000 || showDate) {
+      this._messageList.appendChild(this._createTimeSeparator(msg.time, showDate));
+    }
   }
 }
